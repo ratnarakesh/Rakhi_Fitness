@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: #000000;
+  color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Respect device safe areas for standalone PWA (notch / home indicator). */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  overscroll-behavior-y: none;
+}
+
+/* Remove number input spinners for a cleaner metric UI. */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* Slim neon scrollbar. */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #242424;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0b8c77;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-border bg-surface p-5;
+  }
+  .label {
+    @apply text-[11px] font-semibold uppercase tracking-widest text-muted;
+  }
+  .input-field {
+    @apply w-full rounded-xl border border-border bg-surface-alt px-4 py-3 text-base text-white outline-none transition focus:border-accent focus:ring-1 focus:ring-accent;
+  }
+  .btn-accent {
+    @apply flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-4 text-sm font-bold uppercase tracking-wide text-background transition active:scale-[0.98] disabled:bg-surface-alt disabled:text-faint;
+  }
+  .btn-ghost {
+    @apply flex items-center justify-center gap-2 rounded-xl border border-border bg-transparent px-5 py-4 text-sm font-bold uppercase tracking-wide text-white transition active:scale-[0.98];
+  }
+}
