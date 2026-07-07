@@ -1,8 +1,17 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Dumbbell, Plus, Save, Trash2, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import {
+  Check,
+  ChevronDown,
+  Dumbbell,
+  Info,
+  Plus,
+  Save,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 import ExerciseDemo from '@/components/ExerciseDemo';
 import { useGlobal, type WorkoutSet } from '@/context/GlobalContext';
@@ -31,10 +40,18 @@ export default function TrackerPage() {
   const { workoutHistory, addWorkout, deleteWorkout } = useGlobal();
 
   const [exerciseId, setExerciseId] = useState(EXERCISES[0].id);
+  const [showForm, setShowForm] = useState(false);
   const [draftSets, setDraftSets] = useState<DraftSet[]>([emptySet(), emptySet(), emptySet()]);
   const [justSaved, setJustSaved] = useState(false);
 
   const exercise = getExercise(exerciseId)!;
+
+  // Pre-select an exercise when deep-linked from the plan (/tracker?exercise=id).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search).get('exercise');
+    if (q && getExercise(q)) setExerciseId(q);
+  }, []);
 
   // Live volume preview over the valid rows.
   const validSets = draftSets.filter((s) => toNum(s.weight) > 0 && toNum(s.reps) > 0);
@@ -119,12 +136,55 @@ export default function TrackerPage() {
         <div className="mt-4 aspect-video w-full overflow-hidden rounded-xl border border-border bg-black">
           <ExerciseDemo exercise={exercise} />
         </div>
-        <div className="mt-2 flex items-center gap-2 text-xs text-muted">
-          <span className="rounded-md bg-surface-alt px-2 py-0.5 font-bold uppercase tracking-wide text-accent">
-            {exercise.category}
-          </span>
-          <span>{exercise.name}</span>
+
+        {/* Muscles worked */}
+        <div className="mt-3">
+          <p className="label mb-2">Muscles Worked</p>
+          <div className="flex flex-wrap gap-1.5">
+            {exercise.primaryMuscles.map((m) => (
+              <span
+                key={m}
+                className="rounded-md bg-accent/15 px-2 py-1 text-xs font-bold text-accent"
+              >
+                {m}
+              </span>
+            ))}
+            {exercise.secondaryMuscles.map((m) => (
+              <span
+                key={m}
+                className="rounded-md bg-surface-alt px-2 py-1 text-xs font-semibold text-muted"
+              >
+                {m}
+              </span>
+            ))}
+          </div>
         </div>
+
+        {/* Correct form */}
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="mt-3 flex w-full items-center justify-between rounded-lg bg-surface-alt px-3 py-2.5 text-left"
+        >
+          <span className="flex items-center gap-2 text-sm font-bold text-white">
+            <Info size={15} className="text-accent" /> How to do it correctly
+          </span>
+          <ChevronDown
+            size={16}
+            className={cn('text-muted transition', showForm && 'rotate-180')}
+          />
+        </button>
+        {showForm && (
+          <ol className="mt-2 space-y-2">
+            {exercise.formCues.map((cue, i) => (
+              <li key={i} className="flex gap-2 text-sm text-muted">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-bold text-accent">
+                  {i + 1}
+                </span>
+                <span>{cue}</span>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
 
       {/* Set rows */}

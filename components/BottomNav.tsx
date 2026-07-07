@@ -1,13 +1,14 @@
 'use client';
 
-import { Dumbbell, Images, LayoutDashboard, User } from 'lucide-react';
+import { CalendarDays, Dumbbell, Images, LayoutDashboard, User } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 
 const TABS = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/', label: 'Home', icon: LayoutDashboard },
+  { href: '/plan', label: 'Plan', icon: CalendarDays },
   { href: '/tracker', label: 'Tracker', icon: Dumbbell },
   { href: '/progress', label: 'Progress', icon: Images },
   { href: '/account', label: 'Account', icon: User },
