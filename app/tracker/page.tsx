@@ -14,6 +14,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 
 import ExerciseDemo from '@/components/ExerciseDemo';
+import MuscleMap from '@/components/MuscleMap';
 import { useGlobal, type WorkoutSet } from '@/context/GlobalContext';
 import { EXERCISES, getExercise } from '@/lib/exercises';
 import { cn, fmt, humanDate } from '@/lib/utils';
@@ -40,6 +41,7 @@ export default function TrackerPage() {
   const { workoutHistory, addWorkout, deleteWorkout } = useGlobal();
 
   const [exerciseId, setExerciseId] = useState(EXERCISES[0].id);
+  const [view, setView] = useState<'anatomy' | 'photo'>('anatomy');
   const [showForm, setShowForm] = useState(false);
   const [draftSets, setDraftSets] = useState<DraftSet[]>([emptySet(), emptySet(), emptySet()]);
   const [justSaved, setJustSaved] = useState(false);
@@ -132,19 +134,57 @@ export default function TrackerPage() {
           </span>
         </div>
 
-        {/* Execution frame — animated demonstration for the selected exercise */}
-        <div className="mt-4 aspect-video w-full overflow-hidden rounded-xl border border-border bg-black">
-          <ExerciseDemo exercise={exercise} />
+        {/* View toggle: photo demo vs anatomical muscle map */}
+        <div className="mt-4 flex rounded-lg border border-border bg-surface-alt p-1">
+          {(['anatomy', 'photo'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={cn(
+                'flex-1 rounded-md py-2 text-xs font-bold uppercase tracking-wide transition',
+                view === v ? 'bg-accent text-background' : 'text-muted'
+              )}
+            >
+              {v === 'anatomy' ? 'Muscle Map' : 'Photo Demo'}
+            </button>
+          ))}
         </div>
 
-        {/* Muscles worked */}
+        {/* Frame — muscle-activation map or animated demonstration */}
+        <div
+          className={cn(
+            'mt-3 w-full overflow-hidden rounded-xl border border-border bg-black',
+            view === 'anatomy' ? 'h-80' : 'aspect-video'
+          )}
+        >
+          {view === 'anatomy' ? (
+            <MuscleMap exercise={exercise} />
+          ) : (
+            <ExerciseDemo exercise={exercise} />
+          )}
+        </div>
+
+        {/* Muscles worked + activation legend */}
         <div className="mt-3">
-          <p className="label mb-2">Muscles Worked</p>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="label">Muscles Worked</p>
+            <div className="flex items-center gap-3 text-[11px] text-muted">
+              <span className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#FF3B3B' }} />
+                Primary
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#2FBF71' }} />
+                Secondary
+              </span>
+            </div>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {exercise.primaryMuscles.map((m) => (
               <span
                 key={m}
-                className="rounded-md bg-accent/15 px-2 py-1 text-xs font-bold text-accent"
+                className="rounded-md px-2 py-1 text-xs font-bold text-white"
+                style={{ background: 'rgba(255,59,59,0.2)' }}
               >
                 {m}
               </span>
@@ -152,7 +192,8 @@ export default function TrackerPage() {
             {exercise.secondaryMuscles.map((m) => (
               <span
                 key={m}
-                className="rounded-md bg-surface-alt px-2 py-1 text-xs font-semibold text-muted"
+                className="rounded-md px-2 py-1 text-xs font-semibold text-white"
+                style={{ background: 'rgba(47,191,113,0.18)' }}
               >
                 {m}
               </span>
