@@ -2,9 +2,10 @@
 
 import { motion } from 'framer-motion';
 import { Camera, Check, ImageIcon, Trash2, Weight } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
-import { useGlobal } from '@/context/GlobalContext';
+import AnalysisChart, { type Point } from '@/components/AnalysisChart';
+import { toDateKey, useGlobal } from '@/context/GlobalContext';
 import { fmt, humanDate } from '@/lib/utils';
 
 export default function ProgressPage() {
@@ -12,10 +13,35 @@ export default function ProgressPage() {
     currentWeight,
     targetWeight,
     setCurrentWeight,
+    weightLog,
+    workoutHistory,
     progressPhotos,
     addPhoto,
     deletePhoto,
   } = useGlobal();
+
+  const now = Date.now();
+
+  // Bodyweight series (fall back to a single current point if no history).
+  const weightData: Point[] = useMemo(() => {
+    const pts = weightLog.map((w) => ({ t: Date.parse(w.createdAt), v: w.kg }));
+    if (pts.length === 0 && currentWeight > 0) return [{ t: now, v: currentWeight }];
+    return pts;
+  }, [weightLog, currentWeight, now]);
+
+  // Training volume per day (sum of weight×reps logs).
+  const volumeData: Point[] = useMemo(() => {
+    const byDay = new Map<string, number>();
+    for (const w of workoutHistory) {
+      if (w.totalVolume > 0) {
+        const key = toDateKey(new Date(w.createdAt));
+        byDay.set(key, (byDay.get(key) ?? 0) + w.totalVolume);
+      }
+    }
+    return [...byDay.entries()]
+      .map(([key, v]) => ({ t: Date.parse(`${key}T12:00:00`), v }))
+      .sort((a, b) => a.t - b.t);
+  }, [workoutHistory]);
 
   const [weightInput, setWeightInput] = useState('');
   const [savedFlash, setSavedFlash] = useState(false);
@@ -54,10 +80,27 @@ export default function ProgressPage() {
     <div className="px-5 pt-8">
       <div className="mb-6">
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-accent">
-          Timeline Vault
+          Analysis
         </p>
         <h1 className="mt-1 text-3xl font-extrabold tracking-tight">Progress</h1>
       </div>
+
+      {/* Charts */}
+      <div className="space-y-4">
+        <AnalysisChart title="Bodyweight" data={weightData} unit="kg" kind="line" now={now} />
+        <AnalysisChart
+          title="Training Volume"
+          data={volumeData}
+          unit="kg"
+          kind="bar"
+          color="#5AB0FF"
+          now={now}
+        />
+      </div>
+
+      <h2 className="mb-3 mt-8 text-sm font-bold uppercase tracking-wide text-muted">
+        Body Metrics
+      </h2>
 
       {/* Bodyweight update card */}
       <div className="card">

@@ -31,15 +31,21 @@ export type MuscleGroup =
   | 'Traps'
   | 'Lower Back';
 
+import type { MetricType } from '@/context/GlobalContext';
+
 export interface Exercise {
   id: string;
   name: string;
-  category: 'Push' | 'Pull' | 'Legs' | 'Core' | 'Forearms';
+  category: 'Push' | 'Pull' | 'Legs' | 'Core' | 'Forearms' | 'Cardio';
   /** [start, end] demonstration frames (absolute URLs). */
   frames: [string, string];
   primaryMuscles: MuscleGroup[];
   secondaryMuscles: MuscleGroup[];
   level: 'Beginner' | 'Intermediate' | 'Advanced';
+  /** How the exercise is measured. Defaults to weight-reps when omitted. */
+  metricType?: MetricType;
+  /** Unit label for distance/custom metrics. */
+  unit?: string;
   /** Concise correct-form cues, shown step-by-step in the tracker. */
   formCues: string[];
   /** Optional local GIF override served from /public/gifs. */
@@ -197,6 +203,7 @@ export const EXERCISES: Exercise[] = [
     primaryMuscles: ['Core'],
     secondaryMuscles: ['Forearms'],
     level: 'Advanced',
+    metricType: 'reps',
     formCues: [
       'Hang from the bar, pelvis tucked slightly back.',
       'Raise legs until the torso makes a 90° angle.',
@@ -227,6 +234,8 @@ export const EXERCISES: Exercise[] = [
     primaryMuscles: ['Forearms'],
     secondaryMuscles: ['Traps', 'Core', 'Glutes'],
     level: 'Intermediate',
+    metricType: 'distance',
+    unit: 'm',
     formCues: [
       'Grip heavy dumbbells/handles, stand tall, shoulders back.',
       'Brace the core and walk with short, quick steps.',
@@ -236,6 +245,112 @@ export const EXERCISES: Exercise[] = [
   },
 ];
 
+/* -------------------------------------------------------------------------- */
+/* Cardio & bodyweight (no equipment)                                         */
+/* -------------------------------------------------------------------------- */
+
+export const CARDIO_EXERCISES: Exercise[] = [
+  {
+    id: 'plank',
+    name: 'Plank',
+    category: 'Core',
+    frames: frames('Plank/0.jpg', 'Plank/0.jpg'),
+    primaryMuscles: ['Core'],
+    secondaryMuscles: ['Shoulders', 'Glutes'],
+    level: 'Beginner',
+    metricType: 'seconds',
+    formCues: [
+      'Forearms under shoulders, body in a straight line.',
+      'Brace the abs and squeeze the glutes — no sagging hips.',
+      'Breathe steadily and hold for the target time.',
+    ],
+  },
+  {
+    id: 'push-up',
+    name: 'Push-Up',
+    category: 'Push',
+    frames: frames('Pushups/0.jpg', 'Pushups/1.jpg'),
+    primaryMuscles: ['Chest'],
+    secondaryMuscles: ['Triceps', 'Shoulders', 'Core'],
+    level: 'Beginner',
+    metricType: 'reps',
+    formCues: [
+      'Hands slightly wider than shoulders, body straight.',
+      'Lower until your chest is just above the floor.',
+      'Press up powerfully, keeping the core tight.',
+    ],
+  },
+  {
+    id: 'crunches',
+    name: 'Crunches',
+    category: 'Core',
+    frames: frames('Crunches/0.jpg', 'Crunches/1.jpg'),
+    primaryMuscles: ['Core'],
+    secondaryMuscles: [],
+    level: 'Beginner',
+    metricType: 'reps',
+    formCues: [
+      'Lie on your back, knees bent, hands by your head.',
+      'Curl the shoulders up using the abs — not the neck.',
+      'Squeeze at the top, lower slowly.',
+    ],
+  },
+  {
+    id: 'indoor-rowing',
+    name: 'Indoor Rowing',
+    category: 'Cardio',
+    frames: frames('Rowing_Machine/0.jpg', 'Rowing_Machine/0.jpg'),
+    primaryMuscles: ['Back'],
+    secondaryMuscles: ['Quads', 'Biceps', 'Core'],
+    level: 'Beginner',
+    metricType: 'distance',
+    unit: 'm',
+    formCues: [
+      'Drive with the legs first, then lean back, then pull.',
+      'Reverse the order on the return: arms, torso, legs.',
+      'Keep a steady stroke rate and full range.',
+    ],
+  },
+  {
+    id: 'jumping-jacks',
+    name: 'Jumping Jacks',
+    category: 'Cardio',
+    frames: frames('Jumping_Jacks/0.jpg', 'Jumping_Jacks/1.jpg'),
+    primaryMuscles: ['Calves'],
+    secondaryMuscles: ['Shoulders', 'Core'],
+    level: 'Beginner',
+    metricType: 'reps',
+    formCues: [
+      'Feet together, arms at sides.',
+      'Jump feet out while raising arms overhead.',
+      'Return and repeat at a brisk pace.',
+    ],
+  },
+  {
+    id: 'mountain-climbers',
+    name: 'Mountain Climbers',
+    category: 'Cardio',
+    frames: frames('Mountain_Climbers/0.jpg', 'Mountain_Climbers/1.jpg'),
+    primaryMuscles: ['Core'],
+    secondaryMuscles: ['Shoulders', 'Quads'],
+    level: 'Beginner',
+    metricType: 'seconds',
+    formCues: [
+      'Start in a high plank, hands under shoulders.',
+      'Drive knees toward the chest one at a time, fast.',
+      'Keep hips low and core braced.',
+    ],
+  },
+];
+
+/** Every built-in exercise (strength + cardio/bodyweight). */
+export const ALL_BUILTIN: Exercise[] = [...EXERCISES, ...CARDIO_EXERCISES];
+
 export function getExercise(id: string): Exercise | undefined {
-  return EXERCISES.find((e) => e.id === id);
+  return ALL_BUILTIN.find((e) => e.id === id);
+}
+
+/** Effective metric type for an exercise (defaults to weight-reps). */
+export function metricOf(e: Pick<Exercise, 'metricType'>): MetricType {
+  return e.metricType ?? 'weight-reps';
 }

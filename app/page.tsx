@@ -3,12 +3,15 @@
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
+  CalendarDays,
   Check,
   ChevronRight,
+  Coffee,
   Droplets,
   Dumbbell,
   Footprints,
   Pencil,
+  Pill,
   Plus,
   ShieldCheck,
   Target,
@@ -21,6 +24,8 @@ import { useState } from 'react';
 
 import ProgressBar from '@/components/ProgressBar';
 import { isCompliant, useGlobal } from '@/context/GlobalContext';
+import { CHECKLIST_ITEM_IDS, CHECKLIST_TOTAL } from '@/lib/checklist';
+import { getDayPlan } from '@/lib/plan';
 import { cn, fmt, pct } from '@/lib/utils';
 
 export default function DashboardPage() {
@@ -38,11 +43,15 @@ export default function DashboardPage() {
     addSteps,
     setWater,
     addWater,
+    isChecked,
   } = useGlobal();
 
   const delta = +(currentWeight - targetWeight).toFixed(1);
   const atGoal = delta <= 0;
   const firstName = profile.fullName.trim().split(' ')[0] || 'Rakhi';
+
+  const todayPlan = getDayPlan();
+  const stackDone = CHECKLIST_ITEM_IDS.filter((id) => isChecked(id)).length;
 
   // Dietary audit: inspect the 5 most recent meals for any rule break.
   const recentMeals = mealLogs.slice(0, 5);
@@ -212,8 +221,36 @@ export default function DashboardPage() {
         </div>
       </motion.section>
 
+      {/* Today's session + supplement stack */}
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <Link href="/plan" className="card flex flex-col justify-between active:scale-[0.99]">
+          <div className="flex items-center gap-2 text-muted">
+            {todayPlan.rest ? (
+              <Coffee size={16} style={{ color: todayPlan.color }} />
+            ) : (
+              <CalendarDays size={16} style={{ color: todayPlan.color }} />
+            )}
+            <span className="label">Today</span>
+          </div>
+          <p className="mt-3 text-xl font-extrabold text-white">{todayPlan.title}</p>
+          <p className="mt-0.5 truncate text-xs text-muted">{todayPlan.pairing}</p>
+        </Link>
+
+        <Link href="/checklist" className="card flex flex-col justify-between active:scale-[0.99]">
+          <div className="flex items-center gap-2 text-muted">
+            <Pill size={16} className="text-accent" />
+            <span className="label">Stack</span>
+          </div>
+          <p className="mt-3 text-xl font-extrabold text-accent">
+            {stackDone}
+            <span className="text-base text-muted"> / {CHECKLIST_TOTAL}</span>
+          </p>
+          <p className="mt-0.5 text-xs text-muted">supplements today</p>
+        </Link>
+      </div>
+
       {/* Primary navigation → workout logging */}
-      <Link href="/tracker" className="mt-6 block">
+      <Link href="/tracker" className="mt-4 block">
         <motion.div
           whileTap={{ scale: 0.98 }}
           className="flex items-center justify-between rounded-2xl bg-accent px-5 py-5 text-background shadow-glow"

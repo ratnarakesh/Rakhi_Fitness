@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 
 import './globals.css';
 import BottomNav from '@/components/BottomNav';
+import ReminderScheduler from '@/components/ReminderScheduler';
 import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
 import { GlobalProvider } from '@/context/GlobalContext';
 
@@ -53,6 +54,7 @@ export default function RootLayout({
             {children}
           </main>
           <BottomNav />
+          <ReminderScheduler />
         </GlobalProvider>
         <ServiceWorkerRegister />
       </body>

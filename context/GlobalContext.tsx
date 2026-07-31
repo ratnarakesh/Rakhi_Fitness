@@ -4,15 +4,13 @@
  * Rakhi Fitness — Global State Engine (Web / PWA)
  * -----------------------------------------------------------------------------
  * Client-side global state persisted to localStorage. Single source of truth
- * for every tracked metric. All screens read/write through `useGlobal()`;
- * no component touches localStorage directly.
+ * for every tracked metric. All screens read/write through `useGlobal()`.
  *
- * Persistence model:
- *   - Lazy hydration from localStorage on mount (SSR/export safe — guards on
- *     `typeof window`).
+ *   - Lazy hydration from localStorage on mount (SSR/export safe).
  *   - Write-through: every state change is serialized back to localStorage.
- *   - `hydrated` gates first paint so the UI never flashes default values over
- *     stored ones.
+ *   - `hydrated` gates first paint so the UI never flashes defaults over stored.
+ *   - Forward-compatible: `normalize()` backfills new fields on old payloads,
+ *     so upgrading the schema never wipes a user's existing data.
  */
 
 import React, {
@@ -29,34 +27,64 @@ import React, {
 /* Domain models                                                              */
 /* -------------------------------------------------------------------------- */
 
-/** Storage schema version — bump + migrate on breaking shape changes. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 const STORAGE_KEY = 'rakhi-fitness/state/v1';
 
-/** One weight+reps entry within a workout. */
+/** How an exercise is measured. */
+export type MetricType = 'weight-reps' | 'reps' | 'seconds' | 'distance' | 'custom';
+
+/** One recorded set. Fields present depend on the exercise's metric type. */
 export interface WorkoutSet {
-  weight: number; // kg
-  reps: number;
+  weight?: number; // kg
+  reps?: number;
+  seconds?: number;
+  distance?: number; // meters
+  value?: number; // custom unit amount
 }
 
-/** A committed workout log. Volume is derived, never hand-entered. */
+/** A committed workout log (any metric type). */
 export interface WorkoutEntry {
   id: string;
   createdAt: string; // ISO
   exerciseId: string;
   exercise: string;
-  category: string; // Push / Pull / Legs
+  category: string;
+  color?: string;
+  metricType: MetricType;
+  unit?: string; // label for custom / distance
   sets: WorkoutSet[];
   totalSets: number;
   totalReps: number;
-  /** Total Training Volume = Σ(weight × reps) across all sets. */
+  /** Σ(weight × reps) for weight-reps; 0 otherwise. */
   totalVolume: number;
+  /** Human-readable one-line summary, e.g. "3 sets · 45s". */
+  summary: string;
+}
+
+/** A user-defined exercise. */
+export interface CustomExercise {
+  id: string;
+  name: string;
+  category: string; // Legs / Chest / Cardio / Custom …
+  metricType: MetricType;
+  unit?: string;
+  color: string; // hex accent
+  machinePhoto?: string; // base64
+  demoPhoto?: string; // base64
+  notes?: string;
+}
+
+/** A bodyweight reading over time. */
+export interface WeightEntry {
+  id: string;
+  createdAt: string; // ISO
+  kg: number;
 }
 
 /** A logged meal with mandatory compliance flags. */
 export interface MealLog {
   id: string;
-  createdAt: string; // ISO
+  createdAt: string;
   name: string;
   calories?: number;
   zeroOil: boolean;
@@ -67,9 +95,9 @@ export interface MealLog {
 /** A timestamped progress photo bound to a bodyweight reading. */
 export interface ProgressPhoto {
   id: string;
-  createdAt: string; // ISO
-  dataUrl: string; // base64 image
-  weight: number; // kg at capture time
+  createdAt: string;
+  dataUrl: string;
+  weight: number;
 }
 
 /** Per-day manually-entered activity metrics, keyed by YYYY-MM-DD. */
@@ -80,18 +108,11 @@ export interface DailyMetric {
 
 export type Gender = 'male' | 'female' | 'other' | '';
 export type FitnessGoal = 'Fat Loss' | 'Recomposition' | 'Muscle Gain' | 'Maintenance' | '';
-export type ActivityLevel =
-  | 'Sedentary'
-  | 'Light'
-  | 'Moderate'
-  | 'Active'
-  | 'Athlete'
-  | '';
+export type ActivityLevel = 'Sedentary' | 'Light' | 'Moderate' | 'Active' | 'Athlete' | '';
 
-/** User profile / account details. */
 export interface Profile {
   fullName: string;
-  photo: string; // base64 avatar, '' when unset
+  photo: string;
   age: number;
   gender: Gender;
   heightCm: number;
@@ -106,12 +127,17 @@ export interface PersistedState {
   currentWeight: number;
   targetWeight: number;
   stepGoal: number;
-  waterGoal: number; // ml
-  /** Steps + water tracked independently for each calendar day. */
+  waterGoal: number;
   dailyLog: Record<string, DailyMetric>;
+  weightLog: WeightEntry[];
   workoutHistory: WorkoutEntry[];
+  customExercises: CustomExercise[];
   mealLogs: MealLog[];
   progressPhotos: ProgressPhoto[];
+  /** dateKey -> { itemId -> checked }. Supplement & diet checklist. */
+  checklist: Record<string, Record<string, boolean>>;
+  reminderEnabled: boolean;
+  reminderTime: string; // "HH:MM"
 }
 
 const DEFAULT_PROFILE: Profile = {
@@ -132,9 +158,14 @@ const DEFAULT_STATE: PersistedState = {
   stepGoal: 12000,
   waterGoal: 3500,
   dailyLog: {},
+  weightLog: [],
   workoutHistory: [],
+  customExercises: [],
   mealLogs: [],
   progressPhotos: [],
+  checklist: {},
+  reminderEnabled: false,
+  reminderTime: '17:00',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -142,13 +173,10 @@ const DEFAULT_STATE: PersistedState = {
 /* -------------------------------------------------------------------------- */
 
 function makeId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** Local calendar day key (YYYY-MM-DD) in device local time. */
 export function toDateKey(date: Date = new Date()): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -156,41 +184,99 @@ export function toDateKey(date: Date = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
-/** A meal is fully compliant only when all three zero-* flags hold. */
 export function isCompliant(m: Pick<MealLog, 'zeroOil' | 'zeroSugar' | 'zeroSalt'>): boolean {
   return m.zeroOil && m.zeroSugar && m.zeroSalt;
 }
 
-/** Coerce arbitrary parsed JSON into a valid PersistedState. */
+/** Build a human-readable summary + volume for a set of logged sets. */
+export function summarize(
+  metricType: MetricType,
+  sets: WorkoutSet[],
+  unit?: string
+): { summary: string; totalVolume: number; totalReps: number } {
+  const n = sets.length;
+  const s = (v: number) => (v === 1 ? '' : 's');
+  if (metricType === 'weight-reps') {
+    const vol = sets.reduce((a, x) => a + (x.weight ?? 0) * (x.reps ?? 0), 0);
+    const reps = sets.reduce((a, x) => a + (x.reps ?? 0), 0);
+    return { summary: `${n} set${s(n)} · ${vol.toLocaleString()} kg vol`, totalVolume: vol, totalReps: reps };
+  }
+  if (metricType === 'reps') {
+    const reps = sets.reduce((a, x) => a + (x.reps ?? 0), 0);
+    return { summary: `${n} set${s(n)} · ${reps} reps`, totalVolume: 0, totalReps: reps };
+  }
+  if (metricType === 'seconds') {
+    const secs = sets.reduce((a, x) => a + (x.seconds ?? 0), 0);
+    return { summary: `${n} set${s(n)} · ${secs}s total`, totalVolume: 0, totalReps: 0 };
+  }
+  if (metricType === 'distance') {
+    const dist = sets.reduce((a, x) => a + (x.distance ?? 0), 0);
+    return { summary: `${n} set${s(n)} · ${dist} m`, totalVolume: 0, totalReps: 0 };
+  }
+  const total = sets.reduce((a, x) => a + (x.value ?? 0), 0);
+  return { summary: `${n} set${s(n)} · ${total} ${unit ?? ''}`.trim(), totalVolume: 0, totalReps: 0 };
+}
+
+/* --- Normalization -------------------------------------------------------- */
+
+function normalizeWorkout(w: unknown): WorkoutEntry | null {
+  if (!w || typeof w !== 'object') return null;
+  const o = w as Partial<WorkoutEntry> & { volume?: number };
+  if (typeof o.id !== 'string') return null;
+  const sets: WorkoutSet[] = Array.isArray(o.sets) ? (o.sets as WorkoutSet[]) : [];
+  const metricType: MetricType = o.metricType ?? 'weight-reps';
+  const derived = summarize(metricType, sets, o.unit);
+  return {
+    id: o.id,
+    createdAt: typeof o.createdAt === 'string' ? o.createdAt : new Date().toISOString(),
+    exerciseId: o.exerciseId ?? '',
+    exercise: o.exercise ?? 'Exercise',
+    category: o.category ?? '',
+    color: o.color,
+    metricType,
+    unit: o.unit,
+    sets,
+    totalSets: typeof o.totalSets === 'number' ? o.totalSets : sets.length,
+    totalReps: typeof o.totalReps === 'number' ? o.totalReps : derived.totalReps,
+    totalVolume:
+      typeof o.totalVolume === 'number'
+        ? o.totalVolume
+        : typeof o.volume === 'number'
+          ? o.volume
+          : derived.totalVolume,
+    summary: typeof o.summary === 'string' ? o.summary : derived.summary,
+  };
+}
+
 function normalize(raw: unknown): PersistedState {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_STATE };
   const o = raw as Partial<PersistedState>;
   const legacy = raw as { steps?: unknown; water?: unknown };
-  const num = (v: unknown, fallback: number) =>
-    typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+  const num = (v: unknown, f: number) => (typeof v === 'number' && Number.isFinite(v) ? v : f);
+  const str = (v: unknown, f: string) => (typeof v === 'string' ? v : f);
+  const bool = (v: unknown, f: boolean) => (typeof v === 'boolean' ? v : f);
 
-  // Rebuild the per-day log, coercing each entry.
   const dailyLog: Record<string, DailyMetric> = {};
   if (o.dailyLog && typeof o.dailyLog === 'object') {
     for (const [key, v] of Object.entries(o.dailyLog)) {
       const dm = (v ?? {}) as Partial<DailyMetric>;
       dailyLog[key] = { steps: num(dm.steps, 0), water: num(dm.water, 0) };
     }
-  } else if (
-    typeof legacy.steps === 'number' ||
-    typeof legacy.water === 'number'
-  ) {
-    // Migrate v1 scalar steps/water into today's entry.
-    dailyLog[toDateKey()] = {
-      steps: num(legacy.steps, 0),
-      water: num(legacy.water, 0),
-    };
+  } else if (typeof legacy.steps === 'number' || typeof legacy.water === 'number') {
+    dailyLog[toDateKey()] = { steps: num(legacy.steps, 0), water: num(legacy.water, 0) };
   }
 
-  // Merge stored profile over defaults so new fields always exist.
+  const checklist: Record<string, Record<string, boolean>> = {};
+  if (o.checklist && typeof o.checklist === 'object') {
+    for (const [day, items] of Object.entries(o.checklist)) {
+      if (items && typeof items === 'object') {
+        checklist[day] = {};
+        for (const [k, v] of Object.entries(items)) checklist[day][k] = !!v;
+      }
+    }
+  }
+
   const p = (o.profile ?? {}) as Partial<Profile>;
-  const str = (v: unknown, fallback: string) =>
-    typeof v === 'string' ? v : fallback;
   const profile: Profile = {
     fullName: str(p.fullName, ''),
     photo: str(p.photo, ''),
@@ -202,16 +288,23 @@ function normalize(raw: unknown): PersistedState {
   };
 
   return {
-    version: num(o.version, SCHEMA_VERSION),
+    version: SCHEMA_VERSION,
     profile,
     currentWeight: num(o.currentWeight, DEFAULT_STATE.currentWeight),
     targetWeight: num(o.targetWeight, DEFAULT_STATE.targetWeight),
     stepGoal: num(o.stepGoal, DEFAULT_STATE.stepGoal),
     waterGoal: num(o.waterGoal, DEFAULT_STATE.waterGoal),
     dailyLog,
-    workoutHistory: Array.isArray(o.workoutHistory) ? o.workoutHistory : [],
+    weightLog: Array.isArray(o.weightLog) ? (o.weightLog as WeightEntry[]) : [],
+    workoutHistory: Array.isArray(o.workoutHistory)
+      ? o.workoutHistory.map(normalizeWorkout).filter((w): w is WorkoutEntry => w !== null)
+      : [],
+    customExercises: Array.isArray(o.customExercises) ? (o.customExercises as CustomExercise[]) : [],
     mealLogs: Array.isArray(o.mealLogs) ? o.mealLogs : [],
     progressPhotos: Array.isArray(o.progressPhotos) ? o.progressPhotos : [],
+    checklist,
+    reminderEnabled: bool(o.reminderEnabled, false),
+    reminderTime: str(o.reminderTime, '17:00'),
   };
 }
 
@@ -221,42 +314,39 @@ function normalize(raw: unknown): PersistedState {
 
 export interface GlobalContextValue extends PersistedState {
   hydrated: boolean;
-
-  /** Today's step count (from dailyLog). */
   steps: number;
-  /** Today's water intake in ml (from dailyLog). */
   water: number;
 
-  /* Profile */
   updateProfile: (patch: Partial<Profile>) => void;
 
-  /* Scalar setters */
   setCurrentWeight: (kg: number) => void;
   setTargetWeight: (kg: number) => void;
   setStepGoal: (steps: number) => void;
   setWaterGoal: (ml: number) => void;
 
-  /* Daily activity (operate on today's entry) */
-  setSteps: (steps: number) => void; // absolute value for today
-  addSteps: (delta: number) => void; // increment today
-  setWater: (ml: number) => void; // absolute value for today
-  addWater: (delta: number) => void; // increment today
-  /** Read a specific day's metrics (defaults to today). */
+  setSteps: (steps: number) => void;
+  addSteps: (delta: number) => void;
+  setWater: (ml: number) => void;
+  addWater: (delta: number) => void;
   getDay: (dateKey?: string) => DailyMetric;
 
-  /* Workouts */
   addWorkout: (entry: Omit<WorkoutEntry, 'id' | 'createdAt'>) => WorkoutEntry;
   deleteWorkout: (id: string) => void;
 
-  /* Meals */
+  addCustomExercise: (ex: Omit<CustomExercise, 'id'>) => CustomExercise;
+  deleteCustomExercise: (id: string) => void;
+
   addMeal: (meal: Omit<MealLog, 'id' | 'createdAt'>) => MealLog;
   deleteMeal: (id: string) => void;
 
-  /* Progress photos */
   addPhoto: (photo: Omit<ProgressPhoto, 'id' | 'createdAt'>) => ProgressPhoto;
   deletePhoto: (id: string) => void;
 
-  /* Bulk */
+  toggleChecklistItem: (itemId: string, dateKey?: string) => void;
+  isChecked: (itemId: string, dateKey?: string) => boolean;
+
+  setReminder: (enabled: boolean, time?: string) => void;
+
   resetAll: () => void;
 }
 
@@ -271,7 +361,6 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const didHydrate = useRef(false);
 
-  // --- Hydrate once on mount -------------------------------------------------
   useEffect(() => {
     if (didHydrate.current) return;
     didHydrate.current = true;
@@ -281,120 +370,119 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
         if (raw) setState(normalize(JSON.parse(raw)));
       }
     } catch {
-      // Corrupt payload -> keep defaults rather than crash.
+      /* keep defaults */
     } finally {
       setHydrated(true);
     }
   }, []);
 
-  // --- Write-through persistence after hydration -----------------------------
   useEffect(() => {
     if (!hydrated || typeof window === 'undefined') return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      // Quota / private-mode failure is non-fatal; retried next change.
+      /* non-fatal */
     }
   }, [state, hydrated]);
 
-  // --- Scalar setters --------------------------------------------------------
   const patch = useCallback(
     (p: Partial<PersistedState>) => setState((s) => ({ ...s, ...p })),
     []
   );
 
   const updateProfile = useCallback(
-    (p: Partial<Profile>) =>
-      setState((s) => ({ ...s, profile: { ...s.profile, ...p } })),
+    (p: Partial<Profile>) => setState((s) => ({ ...s, profile: { ...s.profile, ...p } })),
     []
   );
 
-  const setCurrentWeight = useCallback((kg: number) => patch({ currentWeight: kg }), [patch]);
+  const setCurrentWeight = useCallback((kg: number) => {
+    setState((s) => {
+      const entry: WeightEntry = { id: makeId(), createdAt: new Date().toISOString(), kg };
+      return { ...s, currentWeight: kg, weightLog: [...s.weightLog, entry] };
+    });
+  }, []);
   const setTargetWeight = useCallback((kg: number) => patch({ targetWeight: kg }), [patch]);
-  const setStepGoal = useCallback((steps: number) => patch({ stepGoal: steps }), [patch]);
-  const setWaterGoal = useCallback((ml: number) => patch({ waterGoal: ml }), [patch]);
+  const setStepGoal = useCallback((n: number) => patch({ stepGoal: n }), [patch]);
+  const setWaterGoal = useCallback((n: number) => patch({ waterGoal: n }), [patch]);
 
-  // --- Daily activity (steps / water) — always operate on today's entry ------
   const mutateToday = useCallback(
     (field: keyof DailyMetric, resolve: (prev: number) => number) => {
       const key = toDateKey();
       setState((s) => {
         const prev = s.dailyLog[key] ?? { steps: 0, water: 0 };
         const nextVal = Math.max(0, Math.round(resolve(prev[field])));
-        return {
-          ...s,
-          dailyLog: { ...s.dailyLog, [key]: { ...prev, [field]: nextVal } },
-        };
+        return { ...s, dailyLog: { ...s.dailyLog, [key]: { ...prev, [field]: nextVal } } };
       });
     },
     []
   );
-
-  const setSteps = useCallback((steps: number) => mutateToday('steps', () => steps), [mutateToday]);
+  const setSteps = useCallback((n: number) => mutateToday('steps', () => n), [mutateToday]);
   const addSteps = useCallback((d: number) => mutateToday('steps', (p) => p + d), [mutateToday]);
-  const setWater = useCallback((ml: number) => mutateToday('water', () => ml), [mutateToday]);
+  const setWater = useCallback((n: number) => mutateToday('water', () => n), [mutateToday]);
   const addWater = useCallback((d: number) => mutateToday('water', (p) => p + d), [mutateToday]);
-
   const getDay = useCallback(
-    (dateKey: string = toDateKey()): DailyMetric =>
-      state.dailyLog[dateKey] ?? { steps: 0, water: 0 },
+    (dateKey: string = toDateKey()): DailyMetric => state.dailyLog[dateKey] ?? { steps: 0, water: 0 },
     [state.dailyLog]
   );
 
-  // --- Workouts --------------------------------------------------------------
   const addWorkout = useCallback((entry: Omit<WorkoutEntry, 'id' | 'createdAt'>) => {
-    const full: WorkoutEntry = {
-      ...entry,
-      id: makeId(),
-      createdAt: new Date().toISOString(),
-    };
+    const full: WorkoutEntry = { ...entry, id: makeId(), createdAt: new Date().toISOString() };
     setState((s) => ({ ...s, workoutHistory: [full, ...s.workoutHistory] }));
     return full;
   }, []);
-
   const deleteWorkout = useCallback((id: string) => {
-    setState((s) => ({
-      ...s,
-      workoutHistory: s.workoutHistory.filter((w) => w.id !== id),
-    }));
+    setState((s) => ({ ...s, workoutHistory: s.workoutHistory.filter((w) => w.id !== id) }));
   }, []);
 
-  // --- Meals -----------------------------------------------------------------
+  const addCustomExercise = useCallback((ex: Omit<CustomExercise, 'id'>) => {
+    const full: CustomExercise = { ...ex, id: makeId() };
+    setState((s) => ({ ...s, customExercises: [full, ...s.customExercises] }));
+    return full;
+  }, []);
+  const deleteCustomExercise = useCallback((id: string) => {
+    setState((s) => ({ ...s, customExercises: s.customExercises.filter((e) => e.id !== id) }));
+  }, []);
+
   const addMeal = useCallback((meal: Omit<MealLog, 'id' | 'createdAt'>) => {
-    const full: MealLog = {
-      ...meal,
-      id: makeId(),
-      createdAt: new Date().toISOString(),
-    };
+    const full: MealLog = { ...meal, id: makeId(), createdAt: new Date().toISOString() };
     setState((s) => ({ ...s, mealLogs: [full, ...s.mealLogs] }));
     return full;
   }, []);
-
   const deleteMeal = useCallback((id: string) => {
     setState((s) => ({ ...s, mealLogs: s.mealLogs.filter((m) => m.id !== id) }));
   }, []);
 
-  // --- Progress photos -------------------------------------------------------
   const addPhoto = useCallback((photo: Omit<ProgressPhoto, 'id' | 'createdAt'>) => {
-    const full: ProgressPhoto = {
-      ...photo,
-      id: makeId(),
-      createdAt: new Date().toISOString(),
-    };
+    const full: ProgressPhoto = { ...photo, id: makeId(), createdAt: new Date().toISOString() };
     setState((s) => ({ ...s, progressPhotos: [full, ...s.progressPhotos] }));
     return full;
   }, []);
-
   const deletePhoto = useCallback((id: string) => {
-    setState((s) => ({
-      ...s,
-      progressPhotos: s.progressPhotos.filter((p) => p.id !== id),
-    }));
+    setState((s) => ({ ...s, progressPhotos: s.progressPhotos.filter((p) => p.id !== id) }));
   }, []);
+
+  const toggleChecklistItem = useCallback((itemId: string, dateKey: string = toDateKey()) => {
+    setState((s) => {
+      const day = s.checklist[dateKey] ?? {};
+      return {
+        ...s,
+        checklist: { ...s.checklist, [dateKey]: { ...day, [itemId]: !day[itemId] } },
+      };
+    });
+  }, []);
+  const isChecked = useCallback(
+    (itemId: string, dateKey: string = toDateKey()) => !!state.checklist[dateKey]?.[itemId],
+    [state.checklist]
+  );
+
+  const setReminder = useCallback(
+    (enabled: boolean, time?: string) =>
+      setState((s) => ({ ...s, reminderEnabled: enabled, reminderTime: time ?? s.reminderTime })),
+    []
+  );
 
   const resetAll = useCallback(() => setState({ ...DEFAULT_STATE }), []);
 
-  // --- Value -----------------------------------------------------------------
   const today = state.dailyLog[toDateKey()] ?? { steps: 0, water: 0 };
 
   const value = useMemo<GlobalContextValue>(
@@ -415,10 +503,15 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
       getDay,
       addWorkout,
       deleteWorkout,
+      addCustomExercise,
+      deleteCustomExercise,
       addMeal,
       deleteMeal,
       addPhoto,
       deletePhoto,
+      toggleChecklistItem,
+      isChecked,
+      setReminder,
       resetAll,
     }),
     [
@@ -438,20 +531,21 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
       getDay,
       addWorkout,
       deleteWorkout,
+      addCustomExercise,
+      deleteCustomExercise,
       addMeal,
       deleteMeal,
       addPhoto,
       deletePhoto,
+      toggleChecklistItem,
+      isChecked,
+      setReminder,
       resetAll,
     ]
   );
 
   return <GlobalContext.Provider value={value}>{children}</GlobalContext.Provider>;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Hook                                                                       */
-/* -------------------------------------------------------------------------- */
 
 export function useGlobal(): GlobalContextValue {
   const ctx = useContext(GlobalContext);

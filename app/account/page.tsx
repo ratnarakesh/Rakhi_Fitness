@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Camera, Check, User } from 'lucide-react';
+import { Bell, Camera, Check, User } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 
 import {
@@ -37,6 +37,9 @@ export default function AccountPage() {
     updateProfile,
     setCurrentWeight,
     setTargetWeight,
+    reminderEnabled,
+    reminderTime,
+    setReminder,
   } = useGlobal();
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -224,6 +227,48 @@ export default function AccountPage() {
             ))}
           </div>
         </Field>
+      </div>
+
+      {/* Gym reminder */}
+      <div className="mt-4 card">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell size={16} className="text-accent" />
+            <span className="label">Daily Gym Reminder</span>
+          </div>
+          <button
+            role="switch"
+            aria-checked={reminderEnabled}
+            onClick={() => setReminder(!reminderEnabled)}
+            data-testid="reminder-toggle"
+            className={cn(
+              'relative h-7 w-12 rounded-full transition',
+              reminderEnabled ? 'bg-accent' : 'bg-surface-alt border border-border'
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 h-6 w-6 rounded-full bg-white transition-all',
+                reminderEnabled ? 'left-[22px]' : 'left-0.5'
+              )}
+            />
+          </button>
+        </div>
+        {reminderEnabled && (
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-sm text-muted">Remind me at</span>
+            <input
+              type="time"
+              value={reminderTime}
+              onChange={(e) => setReminder(true, e.target.value)}
+              className="rounded-lg border border-border bg-surface-alt px-3 py-2 text-sm font-bold text-white outline-none"
+            />
+          </div>
+        )}
+        <p className="mt-3 text-[11px] leading-relaxed text-faint">
+          Best-effort: fires while the app is open in your browser. A guaranteed
+          alarm when the app is fully closed isn&apos;t possible on a free web app.
+        </p>
       </div>
 
       <motion.button
