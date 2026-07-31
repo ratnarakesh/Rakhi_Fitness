@@ -18,18 +18,18 @@ test.describe('Rakhi Fitness — core flows', () => {
     await page.goto('/checklist/');
     await expect(page.getByRole('heading', { name: /Supplements/i })).toBeVisible();
 
-    // Toggle Omega-3 and Creatine.
-    await page.getByTestId('chk-omega3').click();
+    // Toggle the morning capsule and creatine.
+    await page.getByTestId('chk-am-capsule').click();
     await page.getByTestId('chk-creatine').click();
-    await expect(page.getByText('2 / 10 done today')).toBeVisible();
+    await expect(page.getByText('2 / 6 done today')).toBeVisible();
 
     // Persist across reload.
     await page.reload();
-    await expect(page.getByText('2 / 10 done today')).toBeVisible();
+    await expect(page.getByText('2 / 6 done today')).toBeVisible();
 
     // Home reflects the count.
     await page.goto('/');
-    await expect(page.getByText('/ 10')).toBeVisible();
+    await expect(page.getByText('/ 6')).toBeVisible();
   });
 
   test('log a weight×reps workout (bench press) → appears in history', async ({ page }) => {

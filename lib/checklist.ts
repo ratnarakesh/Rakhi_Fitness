@@ -1,12 +1,18 @@
 /**
  * Rakhi's daily supplement + diet checklist. Grouped by time of day.
  * Item ids are stable — they key the per-day checked state in GlobalContext.
+ *
+ * Note: the morning and night vitamins each come as a single combined capsule,
+ * taken 2 at a time — so they are one checklist item with a `qty` of 2, not one
+ * tick per vitamin.
  */
 
 export interface ChecklistItem {
   id: string;
   label: string;
   detail?: string;
+  /** Number of pieces to take (rendered as a ×N badge). */
+  qty?: number;
 }
 
 export interface ChecklistGroup {
@@ -24,9 +30,12 @@ export const CHECKLIST: ChecklistGroup[] = [
     time: 'AM',
     color: '#FFB020',
     items: [
-      { id: 'omega3', label: 'Omega-3', detail: 'Fish oil' },
-      { id: 'vitd3', label: 'Vitamin D3' },
-      { id: 'k2', label: 'Vitamin K2' },
+      {
+        id: 'am-capsule',
+        label: 'Morning Capsules',
+        detail: 'Omega-3 · Vitamin D3 · K2 (combined)',
+        qty: 2,
+      },
     ],
   },
   {
@@ -45,9 +54,12 @@ export const CHECKLIST: ChecklistGroup[] = [
     time: 'PM',
     color: '#5AB0FF',
     items: [
-      { id: 'zinc', label: 'Zinc' },
-      { id: 'magnesium', label: 'Magnesium' },
-      { id: 'b6', label: 'Vitamin B6' },
+      {
+        id: 'pm-capsule',
+        label: 'Night Capsules',
+        detail: 'Zinc · Magnesium · Vitamin B6 (combined)',
+        qty: 2,
+      },
       { id: 'water', label: 'Water', detail: '4 litres total' },
       { id: 'eggs', label: 'Eggs', detail: '3 whole' },
     ],

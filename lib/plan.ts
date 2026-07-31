@@ -122,7 +122,10 @@ export const WEEKLY_PLAN: DayPlan[] = [
       { name: 'Wrist Curl', exerciseId: 'wrist-curl', sets: 3, reps: '20', variations: ['Reverse Wrist Curl'] },
       { name: "Farmer's Walk", exerciseId: 'farmers-walk', sets: 3, reps: '40m', variations: ['Plate Pinch Carry', 'Dead Hang'] },
     ],
-    abs: [],
+    abs: [
+      { name: 'Cable Crunch', sets: 3, reps: '15-20' },
+      { name: 'Hanging Leg Raise', exerciseId: 'hanging-leg-raise', sets: 3, reps: '12' },
+    ],
     cardio: 'Finisher: 8 min steady cycling.',
   },
   {

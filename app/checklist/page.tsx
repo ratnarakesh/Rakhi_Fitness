@@ -95,9 +95,17 @@ export default function ChecklistPage() {
                     </span>
                     <Pill size={16} style={{ color: group.color }} className="shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className={cn('font-bold', checked ? 'text-white' : 'text-white')}>
-                        {item.label}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-white">{item.label}</p>
+                        {item.qty && item.qty > 1 && (
+                          <span
+                            className="rounded-md px-1.5 py-0.5 text-[10px] font-extrabold"
+                            style={{ background: `${group.color}22`, color: group.color }}
+                          >
+                            ×{item.qty}
+                          </span>
+                        )}
+                      </div>
                       {item.detail && <p className="text-xs text-muted">{item.detail}</p>}
                     </div>
                   </motion.button>

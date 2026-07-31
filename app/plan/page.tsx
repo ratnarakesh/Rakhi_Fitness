@@ -184,16 +184,15 @@ export default function PlanPage() {
       </h2>
       <PlanCard plan={todayPlan} highlight />
 
-      {/* Full weekly split */}
+      {/* Full weekly split — all 7 days, Mon → Sun, today marked */}
       <h2 className="mb-3 mt-8 text-sm font-bold uppercase tracking-wide text-muted">
         Weekly Split
       </h2>
       <div className="space-y-3">
-        {WEEKLY_PLAN.filter((d) => d.weekday !== now.getDay())
-          // Order Mon..Sun for readability.
+        {[...WEEKLY_PLAN]
           .sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7))
           .map((plan) => (
-            <PlanCard key={plan.day} plan={plan} />
+            <PlanCard key={plan.day} plan={plan} today={plan.weekday === now.getDay()} />
           ))}
       </div>
     </div>
@@ -205,16 +204,18 @@ export default function PlanPage() {
 function PlanCard({
   plan,
   highlight = false,
+  today = false,
 }: {
   plan: ReturnType<typeof getDayPlan>;
   highlight?: boolean;
+  today?: boolean;
 }) {
   const [open, setOpen] = useState(highlight);
 
   return (
     <motion.div
       layout
-      className={cn('card', highlight && 'border-accent/50 shadow-glow')}
+      className={cn('card', (highlight || today) && 'border-accent/50 shadow-glow')}
     >
       <button
         onClick={() => setOpen((o) => !o)}
@@ -228,8 +229,13 @@ function PlanCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-faint">{plan.day.slice(0, 3)}</span>
             <p className="font-bold text-white">{plan.title}</p>
-            {!highlight && <span className="text-xs text-faint">{plan.day}</span>}
+            {today && (
+              <span className="rounded-md bg-accent px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-background">
+                Today
+              </span>
+            )}
           </div>
           <p className="truncate text-xs text-muted">{plan.focus}</p>
         </div>
