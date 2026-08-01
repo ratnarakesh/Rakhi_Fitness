@@ -1,7 +1,14 @@
 'use client';
 
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  browserSessionPersistence,
+  GoogleAuthProvider,
+  initializeAuth,
+  type Auth,
+} from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
 import { firebaseConfig } from './firebaseConfig';
@@ -17,12 +24,19 @@ let db: Firestore | null = null;
 /**
  * Lazily initialize Firebase in the browser only. Returns null when disabled
  * (placeholder config) or during SSR/build — so nothing breaks in guest mode.
+ *
+ * Auth persistence is forced to localStorage/session (NOT IndexedDB): some
+ * browsers and tab-manipulating extensions break IndexedDB access, which
+ * surfaced as an "Database is closing/hidden" sign-in error.
  */
 export function getFirebase(): { app: FirebaseApp; auth: Auth; db: Firestore } | null {
   if (typeof window === 'undefined' || !firebaseEnabled) return null;
   if (!app) {
     app = getApps()[0] ?? initializeApp(firebaseConfig);
-    auth = getAuth(app);
+    auth = initializeAuth(app, {
+      persistence: [browserLocalPersistence, browserSessionPersistence],
+      popupRedirectResolver: browserPopupRedirectResolver,
+    });
     db = getFirestore(app);
   }
   return { app: app!, auth: auth!, db: db! };
