@@ -13,6 +13,7 @@
  *     so upgrading the schema never wipes a user's existing data.
  */
 
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import React, {
   createContext,
   useCallback,
@@ -22,6 +23,10 @@ import React, {
   useRef,
   useState,
 } from 'react';
+
+import { firebaseEnabled, getFirebase } from '@/lib/firebase';
+
+import { useAuth } from './AuthContext';
 
 /* -------------------------------------------------------------------------- */
 /* Domain models                                                              */
@@ -321,6 +326,53 @@ function normalize(raw: unknown): PersistedState {
   };
 }
 
+/* --- Cloud sync helpers ---------------------------------------------------- */
+
+const LOCAL_KEY_GUEST = STORAGE_KEY;
+const localKeyFor = (uid: string | null) =>
+  uid ? `rakhi-fitness/state/u-${uid}` : LOCAL_KEY_GUEST;
+
+/** Remove heavy base64 images before writing to Firestore (photos stay local). */
+function stripImages(s: PersistedState): PersistedState {
+  return {
+    ...s,
+    profile: { ...s.profile, photo: '' },
+    progressPhotos: [],
+    customExercises: s.customExercises.map((c) => ({
+      ...c,
+      machinePhoto: undefined,
+      demoPhoto: undefined,
+    })),
+  };
+}
+
+/** Restore device-local images onto a cloud-loaded (image-stripped) state. */
+function withLocalImages(cloud: PersistedState, local: PersistedState | null): PersistedState {
+  if (!local) return cloud;
+  return {
+    ...cloud,
+    profile: { ...cloud.profile, photo: cloud.profile.photo || local.profile.photo || '' },
+    progressPhotos: cloud.progressPhotos.length ? cloud.progressPhotos : local.progressPhotos,
+    customExercises: cloud.customExercises.map((c) => {
+      const l = local.customExercises.find((x) => x.id === c.id);
+      return {
+        ...c,
+        machinePhoto: c.machinePhoto ?? l?.machinePhoto,
+        demoPhoto: c.demoPhoto ?? l?.demoPhoto,
+      };
+    }),
+  };
+}
+
+function readLocal(key: string): PersistedState | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? normalize(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Context contract                                                          */
 /* -------------------------------------------------------------------------- */
@@ -373,33 +425,85 @@ const GlobalContext = createContext<GlobalContextValue | null>(null);
 /* -------------------------------------------------------------------------- */
 
 export function GlobalProvider({ children }: { children: React.ReactNode }) {
+  const { user, authReady } = useAuth();
   const [state, setState] = useState<PersistedState>(DEFAULT_STATE);
   const [hydrated, setHydrated] = useState(false);
-  const didHydrate = useRef(false);
+  const keyRef = useRef(LOCAL_KEY_GUEST);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // --- Load whenever identity resolves/changes (guest ↔ signed-in) ----------
   useEffect(() => {
-    if (didHydrate.current) return;
-    didHydrate.current = true;
-    try {
-      if (typeof window !== 'undefined') {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (raw) setState(normalize(JSON.parse(raw)));
-      }
-    } catch {
-      /* keep defaults */
-    } finally {
-      setHydrated(true);
-    }
-  }, []);
+    if (!authReady || typeof window === 'undefined') return;
+    let active = true;
+    const uid = user?.uid ?? null;
+    const localKey = localKeyFor(uid);
+    keyRef.current = localKey;
+    setHydrated(false);
 
+    (async () => {
+      const local = readLocal(localKey);
+
+      if (uid && firebaseEnabled) {
+        const fb = getFirebase();
+        if (fb) {
+          try {
+            const snap = await getDoc(doc(fb.db, 'users', uid));
+            if (snap.exists() && (snap.data() as { state?: unknown })?.state) {
+              const cloud = normalize((snap.data() as { state: unknown }).state);
+              if (active) setState(withLocalImages(cloud, local));
+            } else {
+              // First sign-in on this account: migrate guest/local data up.
+              const migrated = readLocal(LOCAL_KEY_GUEST) ?? local ?? { ...DEFAULT_STATE };
+              if (active) setState(migrated);
+              await setDoc(
+                doc(fb.db, 'users', uid),
+                { state: stripImages(migrated) },
+                { merge: true }
+              ).catch(() => {});
+            }
+          } catch {
+            if (active) setState(local ?? { ...DEFAULT_STATE });
+          }
+        } else if (active) {
+          setState(local ?? { ...DEFAULT_STATE });
+        }
+      } else if (active) {
+        setState(local ?? { ...DEFAULT_STATE });
+      }
+
+      if (active) setHydrated(true);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [authReady, user?.uid]);
+
+  // --- Write-through: localStorage always, Firestore when signed in ----------
   useEffect(() => {
     if (!hydrated || typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      window.localStorage.setItem(keyRef.current, JSON.stringify(state));
     } catch {
-      /* non-fatal */
+      /* non-fatal (quota) */
     }
-  }, [state, hydrated]);
+
+    const uid = user?.uid ?? null;
+    if (uid && firebaseEnabled) {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        const fb = getFirebase();
+        if (!fb) return;
+        setDoc(doc(fb.db, 'users', uid), { state: stripImages(state) }, { merge: true }).catch(
+          () => {}
+        );
+      }, 800);
+    }
+
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [state, hydrated, user?.uid]);
 
   const patch = useCallback(
     (p: Partial<PersistedState>) => setState((s) => ({ ...s, ...p })),
