@@ -527,6 +527,8 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
 
   const setCurrentWeight = useCallback((kg: number) => {
     setState((s) => {
+      // Clearing (0) resets neutrally without logging a bogus chart point.
+      if (kg <= 0) return { ...s, currentWeight: 0 };
       const entry: WeightEntry = { id: makeId(), createdAt: new Date().toISOString(), kg };
       return { ...s, currentWeight: kg, weightLog: [...s.weightLog, entry] };
     });

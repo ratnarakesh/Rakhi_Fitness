@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  ArrowLeft,
   Check,
   ChevronDown,
   Dumbbell,
@@ -12,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import ExerciseDemo from '@/components/ExerciseDemo';
@@ -123,7 +125,9 @@ export default function TrackerPage() {
     return map;
   }, [customExercises]);
 
+  const router = useRouter();
   const [exerciseId, setExerciseId] = useState(EXERCISES[0].id);
+  const [deepLinked, setDeepLinked] = useState(false);
   const [view, setView] = useState<'anatomy' | 'photo'>('anatomy');
   const [showForm, setShowForm] = useState(false);
   const [draftSets, setDraftSets] = useState<DraftSet[]>([emptySet(), emptySet(), emptySet()]);
@@ -137,7 +141,10 @@ export default function TrackerPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const q = new URLSearchParams(window.location.search).get('exercise');
-    if (q && resolvedById.has(q)) setExerciseId(q);
+    if (q && resolvedById.has(q)) {
+      setExerciseId(q);
+      setDeepLinked(true);
+    }
   }, [resolvedById]);
 
   const isSetValid = (s: DraftSet): boolean => {
@@ -215,11 +222,22 @@ export default function TrackerPage() {
   return (
     <div className="px-5 pt-8">
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-accent">
-            Log Session
-          </p>
-          <h1 className="mt-1 text-3xl font-extrabold tracking-tight">Tracker</h1>
+        <div className="flex items-center gap-3">
+          {deepLinked && (
+            <button
+              onClick={() => router.push('/plan')}
+              aria-label="Back to plan"
+              className="rounded-lg border border-border p-2 text-muted active:scale-90"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          )}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-accent">
+              {deepLinked ? 'From Plan' : 'Log Session'}
+            </p>
+            <h1 className="mt-1 text-3xl font-extrabold tracking-tight">Tracker</h1>
+          </div>
         </div>
         <Link
           href="/tracker/add"

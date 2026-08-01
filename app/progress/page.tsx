@@ -1,10 +1,12 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Camera, Check, ImageIcon, Trash2, Weight } from 'lucide-react';
+import { Camera, Check, ChevronRight, ImageIcon, Trash2, Weight } from 'lucide-react';
+import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
 
 import AnalysisChart, { type Point } from '@/components/AnalysisChart';
+import { useAuth } from '@/context/AuthContext';
 import { toDateKey, useGlobal } from '@/context/GlobalContext';
 import { fmt, humanDate } from '@/lib/utils';
 
@@ -19,6 +21,9 @@ export default function ProgressPage() {
     addPhoto,
     deletePhoto,
   } = useGlobal();
+
+  const { enabled, user } = useAuth();
+  const gated = enabled && !user; // bodyweight logging is a private detail
 
   const now = Date.now();
 
@@ -102,7 +107,16 @@ export default function ProgressPage() {
         Body Metrics
       </h2>
 
-      {/* Bodyweight update card */}
+      {/* Bodyweight update card (gated for guests) */}
+      {gated ? (
+        <Link href="/account" className="card flex items-center justify-between active:scale-[0.99]">
+          <div>
+            <p className="font-bold text-white">Sign in to log bodyweight</p>
+            <p className="mt-0.5 text-xs text-muted">Your weight is private to your account</p>
+          </div>
+          <ChevronRight size={20} className="text-accent" />
+        </Link>
+      ) : (
       <div className="card">
         <div className="flex items-center gap-2 text-muted">
           <Weight size={16} className="text-accent" />
@@ -142,6 +156,7 @@ export default function ProgressPage() {
           </button>
         </div>
       </div>
+      )}
 
       {/* Camera capture */}
       <div className="mt-4">

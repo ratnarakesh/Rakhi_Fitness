@@ -65,18 +65,12 @@ test.describe('Rakhi Fitness — core flows', () => {
     await expect(page.locator('#exercise option', { hasText: 'My Cable Fly' })).toHaveCount(1);
   });
 
-  test('stats page renders both charts and updates bodyweight', async ({ page }) => {
+  test('stats page renders charts; bodyweight gated for guests', async ({ page }) => {
     await page.goto('/progress/');
     await expect(page.getByText('Bodyweight', { exact: true })).toBeVisible();
     await expect(page.getByText('Training Volume')).toBeVisible();
-
-    // Neutral by default — adding a weight creates the first chart point.
-    const w = page.getByPlaceholder('Enter new weight (kg)');
-    await w.click();
-    await w.pressSequentially('70');
-    await page.getByRole('button', { name: /Update/i }).click();
-    await expect(page.getByText('70').first()).toBeVisible();
-    await expect(page.getByTestId('chart-scroll').first()).toBeVisible();
+    // A signed-out guest sees a sign-in gate instead of the weight input.
+    await expect(page.getByText('Sign in to log bodyweight')).toBeVisible();
   });
 
   test('plan shows today session, calendar, and weekly split', async ({ page }) => {

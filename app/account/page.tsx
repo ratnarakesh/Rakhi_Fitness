@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Bell, Camera, Check, Cloud, LogOut, User } from 'lucide-react';
+import { Bell, Camera, Check, Cloud, Lock, LogOut, User } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
@@ -44,6 +44,8 @@ export default function AccountPage() {
   } = useGlobal();
 
   const { enabled, authReady, user, signIn, signOutUser } = useAuth();
+  // Profile details are private: gated behind login when cloud is configured.
+  const gated = enabled && !user;
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [saved, setSaved] = useState(false);
@@ -87,10 +89,11 @@ export default function AccountPage() {
       goal,
       activityLevel: activity,
     });
+    // Allow clearing back to neutral by emptying the field.
     const w = toNum(weight);
     const t = toNum(target);
-    if (w > 0) setCurrentWeight(+w.toFixed(1));
-    if (t > 0) setTargetWeight(+t.toFixed(1));
+    setCurrentWeight(w > 0 ? +w.toFixed(1) : 0);
+    setTargetWeight(t > 0 ? +t.toFixed(1) : 0);
     setSaved(true);
     setTimeout(() => setSaved(false), 1600);
   };
@@ -148,6 +151,21 @@ export default function AccountPage() {
         </div>
       )}
 
+      {/* Guest gate — details are private until sign-in */}
+      {gated && (
+        <div className="card flex flex-col items-center gap-3 py-10 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-alt text-accent">
+            <Lock size={22} />
+          </div>
+          <p className="font-bold text-white">Your details are private</p>
+          <p className="max-w-[16rem] text-sm text-muted">
+            Sign in with Google above to view and manage your profile, weight, BMI and goals.
+          </p>
+        </div>
+      )}
+
+      {!gated && (
+        <>
       {/* Avatar + name */}
       <div className="card flex items-center gap-4">
         <button
@@ -276,7 +294,23 @@ export default function AccountPage() {
         </Field>
       </div>
 
-      {/* Gym reminder */}
+      <motion.button
+        whileTap={{ scale: 0.98 }}
+        onClick={handleSave}
+        className="btn-accent mt-6 w-full"
+      >
+        {saved ? (
+          <>
+            <Check size={18} /> Saved
+          </>
+        ) : (
+          'Save Profile'
+        )}
+      </motion.button>
+        </>
+      )}
+
+      {/* Gym reminder — a device setting, available without login */}
       <div className="mt-4 card">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -317,20 +351,6 @@ export default function AccountPage() {
           alarm when the app is fully closed isn&apos;t possible on a free web app.
         </p>
       </div>
-
-      <motion.button
-        whileTap={{ scale: 0.98 }}
-        onClick={handleSave}
-        className="btn-accent mt-6 w-full"
-      >
-        {saved ? (
-          <>
-            <Check size={18} /> Saved
-          </>
-        ) : (
-          'Save Profile'
-        )}
-      </motion.button>
     </div>
   );
 }

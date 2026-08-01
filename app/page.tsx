@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import ProgressBar from '@/components/ProgressBar';
+import { useAuth } from '@/context/AuthContext';
 import { isCompliant, toDateKey, useGlobal } from '@/context/GlobalContext';
 import { CHECKLIST_ITEM_IDS, CHECKLIST_TOTAL } from '@/lib/checklist';
 import { getDayPlan } from '@/lib/plan';
@@ -47,6 +48,9 @@ export default function DashboardPage() {
     isChecked,
     alcoholLogs,
   } = useGlobal();
+
+  const { enabled, user } = useAuth();
+  const gated = enabled && !user; // bodyweight is a private detail
 
   const hasWeights = currentWeight > 0 && targetWeight > 0;
   const delta = +(currentWeight - targetWeight).toFixed(1);
@@ -101,12 +105,31 @@ export default function DashboardPage() {
         transition={{ duration: 0.4 }}
         className="card relative overflow-hidden shadow-glow"
       >
-        <div className="flex items-center gap-2 text-muted">
-          <Target size={14} />
-          <span className="label">Bodyweight KPI</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-muted">
+            <Target size={14} />
+            <span className="label">Bodyweight KPI</span>
+          </div>
+          {!gated && (
+            <Link
+              href="/account"
+              aria-label="Edit weight"
+              className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-faint transition hover:text-accent"
+            >
+              <Pencil size={12} /> Edit
+            </Link>
+          )}
         </div>
 
-        {currentWeight > 0 ? (
+        {gated ? (
+          <Link href="/account" className="mt-4 flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-extrabold text-white">Sign in to track bodyweight</p>
+              <p className="mt-1 text-sm text-muted">Your weight is private to your account</p>
+            </div>
+            <ChevronRight size={22} className="text-accent" />
+          </Link>
+        ) : currentWeight > 0 ? (
           <div className="mt-4 flex items-end justify-between">
             <div>
               <div className="flex items-end gap-2">
