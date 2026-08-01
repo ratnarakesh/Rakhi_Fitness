@@ -18,12 +18,13 @@ import {
   TrendingDown,
   TrendingUp,
   User,
+  Wine,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
 import ProgressBar from '@/components/ProgressBar';
-import { isCompliant, useGlobal } from '@/context/GlobalContext';
+import { isCompliant, toDateKey, useGlobal } from '@/context/GlobalContext';
 import { CHECKLIST_ITEM_IDS, CHECKLIST_TOTAL } from '@/lib/checklist';
 import { getDayPlan } from '@/lib/plan';
 import { cn, fmt, pct } from '@/lib/utils';
@@ -44,6 +45,7 @@ export default function DashboardPage() {
     setWater,
     addWater,
     isChecked,
+    alcoholLogs,
   } = useGlobal();
 
   const delta = +(currentWeight - targetWeight).toFixed(1);
@@ -52,6 +54,10 @@ export default function DashboardPage() {
 
   const todayPlan = getDayPlan();
   const stackDone = CHECKLIST_ITEM_IDS.filter((id) => isChecked(id)).length;
+  const todayAlcUnits = +alcoholLogs
+    .filter((a) => toDateKey(new Date(a.createdAt)) === toDateKey())
+    .reduce((n, a) => n + a.units, 0)
+    .toFixed(1);
 
   // Dietary audit: inspect the 5 most recent meals for any rule break.
   const recentMeals = mealLogs.slice(0, 5);
@@ -248,6 +254,25 @@ export default function DashboardPage() {
           <p className="mt-0.5 text-xs text-muted">supplements today</p>
         </Link>
       </div>
+
+      {/* Alcohol quick-access */}
+      <Link
+        href="/alcohol"
+        className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-surface px-5 py-4 active:scale-[0.99]"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/15 text-warning">
+            <Wine size={20} />
+          </div>
+          <div>
+            <p className="font-bold text-white">Alcohol</p>
+            <p className="text-xs text-muted">
+              {todayAlcUnits > 0 ? `${todayAlcUnits} units today` : 'Tap to log a drink'}
+            </p>
+          </div>
+        </div>
+        <ChevronRight size={20} className="text-muted" />
+      </Link>
 
       {/* Primary navigation → workout logging */}
       <Link href="/tracker" className="mt-4 block">

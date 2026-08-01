@@ -49,6 +49,16 @@ export const CHECKLIST: ChecklistGroup[] = [
     ],
   },
   {
+    id: 'anytime',
+    title: 'Anytime · Daily Targets',
+    time: 'ANY',
+    color: '#33D17A',
+    items: [
+      { id: 'water', label: 'Water', detail: '4 litres total (across the day)' },
+      { id: 'eggs', label: 'Eggs', detail: '3 whole (any meal)' },
+    ],
+  },
+  {
     id: 'night',
     title: 'Before Sleep',
     time: 'PM',
@@ -60,8 +70,6 @@ export const CHECKLIST: ChecklistGroup[] = [
         detail: 'Zinc · Magnesium · Vitamin B6 (combined)',
         qty: 2,
       },
-      { id: 'water', label: 'Water', detail: '4 litres total' },
-      { id: 'eggs', label: 'Eggs', detail: '3 whole' },
     ],
   },
 ];

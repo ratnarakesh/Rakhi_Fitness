@@ -81,6 +81,16 @@ export interface WeightEntry {
   kg: number;
 }
 
+/** A logged alcohol drink. */
+export interface AlcoholEntry {
+  id: string;
+  createdAt: string; // ISO
+  type: string; // Beer / Whisky / Wine / Other
+  volumeMl: number; // total ml for this entry
+  count: number; // number of servings/pegs/bottles
+  units: number; // standard units (10 g pure alcohol each)
+}
+
 /** A logged meal with mandatory compliance flags. */
 export interface MealLog {
   id: string;
@@ -130,6 +140,7 @@ export interface PersistedState {
   waterGoal: number;
   dailyLog: Record<string, DailyMetric>;
   weightLog: WeightEntry[];
+  alcoholLogs: AlcoholEntry[];
   workoutHistory: WorkoutEntry[];
   customExercises: CustomExercise[];
   mealLogs: MealLog[];
@@ -159,6 +170,7 @@ const DEFAULT_STATE: PersistedState = {
   waterGoal: 3500,
   dailyLog: {},
   weightLog: [],
+  alcoholLogs: [],
   workoutHistory: [],
   customExercises: [],
   mealLogs: [],
@@ -296,6 +308,7 @@ function normalize(raw: unknown): PersistedState {
     waterGoal: num(o.waterGoal, DEFAULT_STATE.waterGoal),
     dailyLog,
     weightLog: Array.isArray(o.weightLog) ? (o.weightLog as WeightEntry[]) : [],
+    alcoholLogs: Array.isArray(o.alcoholLogs) ? (o.alcoholLogs as AlcoholEntry[]) : [],
     workoutHistory: Array.isArray(o.workoutHistory)
       ? o.workoutHistory.map(normalizeWorkout).filter((w): w is WorkoutEntry => w !== null)
       : [],
@@ -335,6 +348,9 @@ export interface GlobalContextValue extends PersistedState {
 
   addCustomExercise: (ex: Omit<CustomExercise, 'id'>) => CustomExercise;
   deleteCustomExercise: (id: string) => void;
+
+  addAlcohol: (entry: Omit<AlcoholEntry, 'id' | 'createdAt'>) => AlcoholEntry;
+  deleteAlcohol: (id: string) => void;
 
   addMeal: (meal: Omit<MealLog, 'id' | 'createdAt'>) => MealLog;
   deleteMeal: (id: string) => void;
@@ -443,6 +459,15 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, customExercises: s.customExercises.filter((e) => e.id !== id) }));
   }, []);
 
+  const addAlcohol = useCallback((entry: Omit<AlcoholEntry, 'id' | 'createdAt'>) => {
+    const full: AlcoholEntry = { ...entry, id: makeId(), createdAt: new Date().toISOString() };
+    setState((s) => ({ ...s, alcoholLogs: [full, ...s.alcoholLogs] }));
+    return full;
+  }, []);
+  const deleteAlcohol = useCallback((id: string) => {
+    setState((s) => ({ ...s, alcoholLogs: s.alcoholLogs.filter((a) => a.id !== id) }));
+  }, []);
+
   const addMeal = useCallback((meal: Omit<MealLog, 'id' | 'createdAt'>) => {
     const full: MealLog = { ...meal, id: makeId(), createdAt: new Date().toISOString() };
     setState((s) => ({ ...s, mealLogs: [full, ...s.mealLogs] }));
@@ -505,6 +530,8 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
       deleteWorkout,
       addCustomExercise,
       deleteCustomExercise,
+      addAlcohol,
+      deleteAlcohol,
       addMeal,
       deleteMeal,
       addPhoto,
@@ -533,6 +560,8 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
       deleteWorkout,
       addCustomExercise,
       deleteCustomExercise,
+      addAlcohol,
+      deleteAlcohol,
       addMeal,
       deleteMeal,
       addPhoto,

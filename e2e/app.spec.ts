@@ -92,6 +92,14 @@ test.describe('Rakhi Fitness — core flows', () => {
     await expect(page.locator('input[type="time"]')).toBeVisible();
   });
 
+  test('log an alcohol drink → appears in history', async ({ page }) => {
+    await page.goto('/alcohol/');
+    await page.getByRole('button', { name: /Whisky/ }).click();
+    await page.getByTestId('alc-log').click();
+    await expect(page.getByRole('button', { name: 'Delete drink' })).toHaveCount(1);
+    await expect(page.getByText(/units today|Today ·/).first()).toBeVisible();
+  });
+
   test('bottom-nav navigation works between tabs', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('link', { name: 'Plan', exact: true }).click();
