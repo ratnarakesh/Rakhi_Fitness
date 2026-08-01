@@ -8,7 +8,9 @@
  */
 export const firebaseConfig = {
   apiKey: 'AIzaSyAnAfpY7876Uc8nzhjIo7lswt5s5Q-jRNA',
-  authDomain: 'rakhi-fitness.firebaseapp.com',
+  // Own-domain auth handler (proxied to firebaseapp.com via functions/__)
+  // so redirect sign-in is first-party and survives 3rd-party-cookie blocking.
+  authDomain: 'rakhi-fitness.pages.dev',
   projectId: 'rakhi-fitness',
   storageBucket: 'rakhi-fitness.firebasestorage.app',
   messagingSenderId: '704989217605',
