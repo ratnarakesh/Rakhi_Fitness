@@ -3,26 +3,10 @@
 import {
   getRedirectResult,
   onAuthStateChanged,
-  signInWithPopup,
   signInWithRedirect,
   signOut as fbSignOut,
   type User,
 } from 'firebase/auth';
-
-/**
- * Installed PWAs and browsers with aggressive tab-manipulating extensions break
- * popup sign-in (the popup tab can't return its result). A full-page redirect
- * avoids the second tab entirely, so we prefer it on mobile / standalone and
- * fall back to popup only on desktop browsers.
- */
-function preferRedirect(): boolean {
-  if (typeof window === 'undefined') return false;
-  const standalone =
-    window.matchMedia?.('(display-mode: standalone)').matches ||
-    (window.navigator as { standalone?: boolean }).standalone === true;
-  const mobile = /Android|iPhone|iPad|iPod|Mobi/i.test(window.navigator.userAgent);
-  return standalone || mobile;
-}
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 import { firebaseEnabled, getFirebase, googleProvider } from '@/lib/firebase';
@@ -41,14 +25,6 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
-// Popup errors that mean "try the full-page redirect instead".
-const REDIRECT_FALLBACK = new Set([
-  'auth/popup-blocked',
-  'auth/cancelled-popup-request',
-  'auth/operation-not-supported-in-this-environment',
-  'auth/popup-closed-by-user',
-]);
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuthReady(true);
       return;
     }
-    // Complete any pending redirect sign-in and surface its error if any.
+    // Complete the redirect sign-in when we land back on the app.
     getRedirectResult(fb.auth).catch((e: unknown) => {
       const err = e as { code?: string; message?: string };
       setError(err?.code || err?.message || 'redirect-failed');
@@ -79,26 +55,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!fb) return;
     setError(null);
     try {
-      // Prefer full-page redirect on mobile / installed PWA (popup can't return).
-      if (preferRedirect()) {
-        await signInWithRedirect(fb.auth, googleProvider);
-        return;
-      }
-      await signInWithPopup(fb.auth, googleProvider);
+      // Full-page redirect (no popup / second tab) — most robust across
+      // browsers, installed PWAs, and tab-manipulating extensions.
+      await signInWithRedirect(fb.auth, googleProvider);
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
-      const code = err?.code || '';
-      if (REDIRECT_FALLBACK.has(code)) {
-        try {
-          await signInWithRedirect(fb.auth, googleProvider);
-        } catch (e2: unknown) {
-          const err2 = e2 as { code?: string; message?: string };
-          setError(err2?.code || err2?.message || 'redirect-failed');
-        }
-      } else {
-        // e.g. auth/unauthorized-domain, auth/operation-not-allowed — show it.
-        setError(code || err?.message || 'sign-in-failed');
-      }
+      setError(err?.code || err?.message || 'sign-in-failed');
     }
   }, []);
 
