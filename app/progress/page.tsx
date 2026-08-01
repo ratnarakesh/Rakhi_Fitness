@@ -112,10 +112,14 @@ export default function ProgressPage() {
         <div className="mt-3 flex items-end justify-between">
           <div>
             <div className="flex items-end gap-1">
-              <span className="text-4xl font-extrabold text-accent">{currentWeight}</span>
+              <span className="text-4xl font-extrabold text-accent">
+                {currentWeight > 0 ? currentWeight : '—'}
+              </span>
               <span className="mb-1 text-sm font-semibold text-muted">kg</span>
             </div>
-            <p className="mt-1 text-xs text-muted">Target {targetWeight} kg</p>
+            <p className="mt-1 text-xs text-muted">
+              {targetWeight > 0 ? `Target ${targetWeight} kg` : 'No target set'}
+            </p>
           </div>
         </div>
 

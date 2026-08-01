@@ -8,7 +8,7 @@ import { expect, test } from '@playwright/test';
 test.describe('Rakhi Fitness — core flows', () => {
   test('home loads with greeting and all tabs', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /Hey Rakhi/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Hey there/i })).toBeVisible();
     for (const tab of ['Home', 'Plan', 'Log', 'Stats', 'Stack', 'Me']) {
       await expect(page.getByRole('link', { name: tab, exact: true })).toBeVisible();
     }
@@ -69,11 +69,14 @@ test.describe('Rakhi Fitness — core flows', () => {
     await page.goto('/progress/');
     await expect(page.getByText('Bodyweight', { exact: true })).toBeVisible();
     await expect(page.getByText('Training Volume')).toBeVisible();
-    await expect(page.getByTestId('chart-scroll').first()).toBeVisible();
 
-    await page.getByPlaceholder('Enter new weight (kg)').fill('70');
+    // Neutral by default — adding a weight creates the first chart point.
+    const w = page.getByPlaceholder('Enter new weight (kg)');
+    await w.click();
+    await w.pressSequentially('70');
     await page.getByRole('button', { name: /Update/i }).click();
     await expect(page.getByText('70').first()).toBeVisible();
+    await expect(page.getByTestId('chart-scroll').first()).toBeVisible();
   });
 
   test('plan shows today session, calendar, and weekly split', async ({ page }) => {

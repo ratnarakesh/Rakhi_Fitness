@@ -169,8 +169,8 @@ const DEFAULT_PROFILE: Profile = {
 const DEFAULT_STATE: PersistedState = {
   version: SCHEMA_VERSION,
   profile: DEFAULT_PROFILE,
-  currentWeight: 75,
-  targetWeight: 69,
+  currentWeight: 0, // unset — stays neutral until the user enters it
+  targetWeight: 0,
   stepGoal: 12000,
   waterGoal: 3500,
   dailyLog: {},
@@ -504,6 +504,16 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
   }, [state, hydrated, user?.uid]);
+
+  // --- Prefill display name from Google (only if the user hasn't set one) ----
+  useEffect(() => {
+    if (!hydrated || !user?.displayName) return;
+    setState((s) =>
+      s.profile.fullName.trim()
+        ? s
+        : { ...s, profile: { ...s.profile, fullName: user.displayName as string } }
+    );
+  }, [hydrated, user?.displayName]);
 
   const patch = useCallback(
     (p: Partial<PersistedState>) => setState((s) => ({ ...s, ...p })),

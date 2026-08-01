@@ -48,9 +48,10 @@ export default function DashboardPage() {
     alcoholLogs,
   } = useGlobal();
 
+  const hasWeights = currentWeight > 0 && targetWeight > 0;
   const delta = +(currentWeight - targetWeight).toFixed(1);
   const atGoal = delta <= 0;
-  const firstName = profile.fullName.trim().split(' ')[0] || 'Rakhi';
+  const firstName = profile.fullName.trim().split(' ')[0] || 'there';
 
   const todayPlan = getDayPlan();
   const stackDone = CHECKLIST_ITEM_IDS.filter((id) => isChecked(id)).length;
@@ -93,7 +94,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Executive KPI — body weight vs 69 kg target */}
+      {/* Executive KPI — bodyweight vs target */}
       <motion.section
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -102,42 +103,60 @@ export default function DashboardPage() {
       >
         <div className="flex items-center gap-2 text-muted">
           <Target size={14} />
-          <span className="label">Executive Bodyweight KPI</span>
+          <span className="label">Bodyweight KPI</span>
         </div>
 
-        <div className="mt-4 flex items-end justify-between">
-          <div>
-            <div className="flex items-end gap-2">
-              <span className="text-6xl font-extrabold leading-none text-accent">
-                {hydrated ? currentWeight : '—'}
-              </span>
-              <span className="mb-1 text-lg font-semibold text-muted">kg</span>
+        {currentWeight > 0 ? (
+          <div className="mt-4 flex items-end justify-between">
+            <div>
+              <div className="flex items-end gap-2">
+                <span className="text-6xl font-extrabold leading-none text-accent">
+                  {hydrated ? currentWeight : '—'}
+                </span>
+                <span className="mb-1 text-lg font-semibold text-muted">kg</span>
+              </div>
+              <p className="mt-2 text-sm text-muted">
+                {targetWeight > 0 ? (
+                  <>
+                    Target <span className="font-bold text-white">{targetWeight} kg</span>
+                  </>
+                ) : (
+                  'No target set'
+                )}
+              </p>
             </div>
-            <p className="mt-2 text-sm text-muted">
-              Target <span className="font-bold text-white">{targetWeight} kg</span>
-            </p>
-          </div>
 
-          <div
-            className={cn(
-              'flex flex-col items-end rounded-xl px-3 py-2',
-              atGoal ? 'bg-accent/10' : 'bg-danger/10'
+            {hasWeights && (
+              <div
+                className={cn(
+                  'flex flex-col items-end rounded-xl px-3 py-2',
+                  atGoal ? 'bg-accent/10' : 'bg-danger/10'
+                )}
+              >
+                <div
+                  className={cn(
+                    'flex items-center gap-1 text-lg font-bold',
+                    atGoal ? 'text-accent' : 'text-danger'
+                  )}
+                >
+                  {atGoal ? <TrendingDown size={18} /> : <TrendingUp size={18} />}
+                  {Math.abs(delta)} kg
+                </div>
+                <span className="text-[11px] uppercase tracking-wide text-muted">
+                  {atGoal ? 'at / below target' : 'to go'}
+                </span>
+              </div>
             )}
-          >
-            <div
-              className={cn(
-                'flex items-center gap-1 text-lg font-bold',
-                atGoal ? 'text-accent' : 'text-danger'
-              )}
-            >
-              {atGoal ? <TrendingDown size={18} /> : <TrendingUp size={18} />}
-              {Math.abs(delta)} kg
-            </div>
-            <span className="text-[11px] uppercase tracking-wide text-muted">
-              {atGoal ? 'at / below target' : 'to go'}
-            </span>
           </div>
-        </div>
+        ) : (
+          <Link href="/account" className="mt-4 flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-extrabold text-white">Set your weight</p>
+              <p className="mt-1 text-sm text-muted">Add current + target in your profile</p>
+            </div>
+            <ChevronRight size={22} className="text-accent" />
+          </Link>
+        )}
       </motion.section>
 
       {/* 2-column metric grid: Steps + Water (manual daily entry) */}
