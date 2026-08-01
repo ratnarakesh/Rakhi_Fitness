@@ -18,14 +18,25 @@ interface AuthValue {
   /** True once the initial auth state is known. */
   authReady: boolean;
   user: User | null;
+  /** Last sign-in error code/message, surfaced to the UI (null when fine). */
+  error: string | null;
   signIn: () => Promise<void>;
   signOutUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
 
+// Popup errors that mean "try the full-page redirect instead".
+const REDIRECT_FALLBACK = new Set([
+  'auth/popup-blocked',
+  'auth/cancelled-popup-request',
+  'auth/operation-not-supported-in-this-environment',
+  'auth/popup-closed-by-user',
+]);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
   // When Firebase isn't configured, auth is "ready" immediately (guest only).
   const [authReady, setAuthReady] = useState(!firebaseEnabled);
 
@@ -35,11 +46,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuthReady(true);
       return;
     }
-    // Complete any pending redirect sign-in (mobile).
-    getRedirectResult(fb.auth).catch(() => {});
+    // Complete any pending redirect sign-in and surface its error if any.
+    getRedirectResult(fb.auth).catch((e: unknown) => {
+      const err = e as { code?: string; message?: string };
+      setError(err?.code || err?.message || 'redirect-failed');
+    });
     const unsub = onAuthStateChanged(fb.auth, (u) => {
       setUser(u);
       setAuthReady(true);
+      if (u) setError(null);
     });
     return unsub;
   }, []);
@@ -47,14 +62,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback(async () => {
     const fb = getFirebase();
     if (!fb) return;
+    setError(null);
     try {
       await signInWithPopup(fb.auth, googleProvider);
-    } catch {
-      // Popup blocked / unsupported (common in installed PWAs) → redirect flow.
-      try {
-        await signInWithRedirect(fb.auth, googleProvider);
-      } catch {
-        /* surfaced to the user via unchanged signed-out state */
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string };
+      const code = err?.code || '';
+      if (REDIRECT_FALLBACK.has(code)) {
+        try {
+          await signInWithRedirect(fb.auth, googleProvider);
+        } catch (e2: unknown) {
+          const err2 = e2 as { code?: string; message?: string };
+          setError(err2?.code || err2?.message || 'redirect-failed');
+        }
+      } else {
+        // e.g. auth/unauthorized-domain, auth/operation-not-allowed — show it.
+        setError(code || err?.message || 'sign-in-failed');
       }
     }
   }, []);
@@ -65,7 +88,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ enabled: firebaseEnabled, authReady, user, signIn, signOutUser }}>
+    <AuthContext.Provider
+      value={{ enabled: firebaseEnabled, authReady, user, error, signIn, signOutUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

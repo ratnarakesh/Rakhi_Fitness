@@ -43,7 +43,7 @@ export default function AccountPage() {
     setReminder,
   } = useGlobal();
 
-  const { enabled, authReady, user, signIn, signOutUser } = useAuth();
+  const { enabled, authReady, user, error, signIn, signOutUser } = useAuth();
   // Profile details are private: gated behind login when cloud is configured.
   const gated = enabled && !user;
 
@@ -146,6 +146,11 @@ export default function AccountPage() {
               >
                 <GoogleGlyph /> Sign in with Google
               </button>
+              {error && (
+                <p className="mt-2 text-xs text-danger" data-testid="signin-error">
+                  Sign-in error: <span className="font-bold">{error}</span>
+                </p>
+              )}
             </div>
           )}
         </div>
