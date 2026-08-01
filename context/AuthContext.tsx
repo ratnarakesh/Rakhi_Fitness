@@ -8,6 +8,21 @@ import {
   signOut as fbSignOut,
   type User,
 } from 'firebase/auth';
+
+/**
+ * Installed PWAs and browsers with aggressive tab-manipulating extensions break
+ * popup sign-in (the popup tab can't return its result). A full-page redirect
+ * avoids the second tab entirely, so we prefer it on mobile / standalone and
+ * fall back to popup only on desktop browsers.
+ */
+function preferRedirect(): boolean {
+  if (typeof window === 'undefined') return false;
+  const standalone =
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    (window.navigator as { standalone?: boolean }).standalone === true;
+  const mobile = /Android|iPhone|iPad|iPod|Mobi/i.test(window.navigator.userAgent);
+  return standalone || mobile;
+}
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 import { firebaseEnabled, getFirebase, googleProvider } from '@/lib/firebase';
@@ -64,6 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!fb) return;
     setError(null);
     try {
+      // Prefer full-page redirect on mobile / installed PWA (popup can't return).
+      if (preferRedirect()) {
+        await signInWithRedirect(fb.auth, googleProvider);
+        return;
+      }
       await signInWithPopup(fb.auth, googleProvider);
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
