@@ -18,12 +18,22 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://rakhi-fitness.pages.dev'),
   applicationName: 'Rakhi Fitness',
   title: {
-    default: 'Rakhi Fitness — Track. Train. Transform.',
+    default: 'Rakhi Fitness',
     template: '%s · Rakhi Fitness',
   },
   description:
-    'Your personal gym companion: log workouts with muscle maps, follow a weekly plan, track bodyweight, supplements, water and more — a fast, free dark-theme fitness PWA.',
-  keywords: ['fitness', 'gym', 'workout tracker', 'training volume', 'muscle map', 'PWA'],
+    'Track. Train. Transform. Your all-in-one gym companion — log workouts with live muscle maps, follow a personalised weekly plan, and track bodyweight, supplements, water and progress. Fast, free, and works offline.',
+  keywords: [
+    'fitness',
+    'gym',
+    'workout tracker',
+    'training volume',
+    'muscle map',
+    'weekly plan',
+    'supplement tracker',
+    'progress',
+    'PWA',
+  ],
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -35,16 +45,16 @@ export const metadata: Metadata = {
     type: 'website',
     url: '/',
     siteName: 'Rakhi Fitness',
-    title: 'Rakhi Fitness — Track. Train. Transform.',
+    title: 'Rakhi Fitness',
     description:
-      'Log workouts with muscle maps, follow your weekly plan, and track bodyweight, supplements & more. Free fitness PWA.',
+      'Track. Train. Transform. 💪 Workouts with live muscle maps, a weekly plan, plus bodyweight, supplements, alcohol & progress tracking — your free fitness PWA.',
     images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Rakhi Fitness' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Rakhi Fitness — Track. Train. Transform.',
+    title: 'Rakhi Fitness',
     description:
-      'Log workouts with muscle maps, follow your weekly plan, and track bodyweight, supplements & more. Free fitness PWA.',
+      'Track. Train. Transform. 💪 Workouts with live muscle maps, a weekly plan, plus bodyweight, supplements, alcohol & progress tracking — your free fitness PWA.',
     images: ['/og.png'],
   },
 };
