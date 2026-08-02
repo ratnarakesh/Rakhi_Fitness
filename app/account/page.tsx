@@ -99,7 +99,7 @@ export default function AccountPage() {
   };
 
   return (
-    <div className="px-5 pt-8">
+    <div className="min-h-screen bg-gradient-to-b from-[#101a17] via-[#0a0f0d] to-background px-5 pt-8">
       <div className="mb-6">
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-accent">
           My Account
@@ -194,7 +194,6 @@ export default function AccountPage() {
           ref={fileRef}
           type="file"
           accept="image/*"
-          capture="user"
           onChange={handleAvatar}
           className="hidden"
         />

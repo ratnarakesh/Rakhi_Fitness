@@ -164,7 +164,6 @@ export default function ProgressPage() {
           ref={fileRef}
           type="file"
           accept="image/*"
-          capture="user"
           onChange={handleCapture}
           className="hidden"
         />
@@ -176,11 +175,11 @@ export default function ProgressPage() {
         >
           <Camera size={24} strokeWidth={2.5} />
           <span className="text-base font-extrabold uppercase tracking-wide">
-            {uploading ? 'Processing…' : 'Capture Progress Photo'}
+            {uploading ? 'Processing…' : 'Add Progress Photo'}
           </span>
         </motion.button>
         <p className="mt-2 text-center text-xs text-muted">
-          Front camera opens on mobile · tagged at {currentWeight} kg
+          Take a photo or choose from your library · tagged at {currentWeight} kg
         </p>
       </div>
 

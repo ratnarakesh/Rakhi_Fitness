@@ -72,8 +72,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="min-h-screen bg-background font-sans text-white antialiased">
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <body
+        className="min-h-screen bg-background font-sans text-white antialiased"
+        suppressHydrationWarning
+      >
         <AuthProvider>
           <GlobalProvider>
             <main className="mx-auto min-h-screen w-full max-w-md pb-24">
