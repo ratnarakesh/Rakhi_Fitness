@@ -3,13 +3,14 @@
  * -----------------------------------------------------------------------------
  * Strategy:
  *   - Precache the app shell on install.
- *   - Navigations: network-first, fall back to cached shell when offline.
+ *   - Navigations: stale-while-revalidate (instant from cache, refresh in bg).
  *   - Static assets (same-origin GET): stale-while-revalidate.
+ *   - /__/* (Firebase auth proxy) is never intercepted.
  * Bump CACHE_VERSION to invalidate old caches on deploy.
  */
 
-const CACHE_VERSION = 'rakhi-fitness-v1';
-const APP_SHELL = ['/', '/tracker/', '/progress/', '/manifest.json'];
+const CACHE_VERSION = 'rakhi-fitness-v2';
+const APP_SHELL = ['/', '/plan/', '/tracker/', '/progress/', '/checklist/', '/account/', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -35,21 +36,32 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
+  const url = new URL(request.url);
+
   // Only handle same-origin GET requests.
-  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) {
+  if (request.method !== 'GET' || url.origin !== self.location.origin) {
     return;
   }
 
-  // Navigation requests: network-first with offline fallback to app shell.
+  // Never intercept the Firebase auth proxy — it must always hit the network.
+  if (url.pathname.startsWith('/__/')) {
+    return;
+  }
+
+  // Navigation requests: stale-while-revalidate (instant from cache, refresh in
+  // the background), falling back to the app shell when offline.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
+      caches.match(request).then((cached) => {
+        const network = fetch(request)
+          .then((response) => {
+            const copy = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
+            return response;
+          })
+          .catch(() => cached || caches.match('/'));
+        return cached || network;
+      })
     );
     return;
   }

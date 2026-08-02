@@ -13,7 +13,7 @@
  *     so upgrading the schema never wipes a user's existing data.
  */
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore/lite';
 import React, {
   createContext,
   useCallback,
@@ -25,6 +25,7 @@ import React, {
 } from 'react';
 
 import { firebaseEnabled, getFirebase } from '@/lib/firebase';
+import { DEFAULT_THEME, isTheme } from '@/lib/themes';
 
 import { useAuth } from './AuthContext';
 
@@ -138,6 +139,7 @@ export interface Profile {
 /** Full persisted tree. */
 export interface PersistedState {
   version: number;
+  theme: string;
   profile: Profile;
   currentWeight: number;
   targetWeight: number;
@@ -168,6 +170,7 @@ const DEFAULT_PROFILE: Profile = {
 
 const DEFAULT_STATE: PersistedState = {
   version: SCHEMA_VERSION,
+  theme: DEFAULT_THEME,
   profile: DEFAULT_PROFILE,
   currentWeight: 0, // unset — stays neutral until the user enters it
   targetWeight: 0,
@@ -306,6 +309,7 @@ function normalize(raw: unknown): PersistedState {
 
   return {
     version: SCHEMA_VERSION,
+    theme: isTheme(o.theme) ? o.theme : DEFAULT_THEME,
     profile,
     currentWeight: num(o.currentWeight, DEFAULT_STATE.currentWeight),
     targetWeight: num(o.targetWeight, DEFAULT_STATE.targetWeight),
@@ -382,6 +386,7 @@ export interface GlobalContextValue extends PersistedState {
   steps: number;
   water: number;
 
+  setTheme: (id: string) => void;
   updateProfile: (patch: Partial<Profile>) => void;
 
   setCurrentWeight: (kg: number) => void;
@@ -431,48 +436,41 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
   const keyRef = useRef(LOCAL_KEY_GUEST);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // --- Load whenever identity resolves/changes (guest ↔ signed-in) ----------
+  // --- Load: paint instantly from local cache, reconcile cloud in background -
   useEffect(() => {
     if (!authReady || typeof window === 'undefined') return;
     let active = true;
     const uid = user?.uid ?? null;
     const localKey = localKeyFor(uid);
     keyRef.current = localKey;
-    setHydrated(false);
 
-    (async () => {
-      const local = readLocal(localKey);
+    // 1) Instant paint from this identity's local cache — never blocks on network.
+    const local = readLocal(localKey);
+    setState(local ?? { ...DEFAULT_STATE });
+    setHydrated(true);
 
-      if (uid && firebaseEnabled) {
-        const fb = getFirebase();
-        if (fb) {
-          try {
-            const snap = await getDoc(doc(fb.db, 'users', uid));
+    // 2) Background: reconcile with Firestore, then merge in when it arrives.
+    if (uid && firebaseEnabled) {
+      const fb = getFirebase();
+      if (fb) {
+        getDoc(doc(fb.db, 'users', uid))
+          .then((snap) => {
+            if (!active) return;
             if (snap.exists() && (snap.data() as { state?: unknown })?.state) {
               const cloud = normalize((snap.data() as { state: unknown }).state);
-              if (active) setState(withLocalImages(cloud, local));
+              setState((cur) => withLocalImages(cloud, cur));
             } else {
               // First sign-in on this account: migrate guest/local data up.
-              const migrated = readLocal(LOCAL_KEY_GUEST) ?? local ?? { ...DEFAULT_STATE };
-              if (active) setState(migrated);
-              await setDoc(
-                doc(fb.db, 'users', uid),
-                { state: stripImages(migrated) },
-                { merge: true }
-              ).catch(() => {});
+              const base = readLocal(LOCAL_KEY_GUEST) ?? local ?? { ...DEFAULT_STATE };
+              setState(base);
+              setDoc(doc(fb.db, 'users', uid), { state: stripImages(base) }, { merge: true }).catch(
+                () => {}
+              );
             }
-          } catch {
-            if (active) setState(local ?? { ...DEFAULT_STATE });
-          }
-        } else if (active) {
-          setState(local ?? { ...DEFAULT_STATE });
-        }
-      } else if (active) {
-        setState(local ?? { ...DEFAULT_STATE });
+          })
+          .catch(() => {});
       }
-
-      if (active) setHydrated(true);
-    })();
+    }
 
     return () => {
       active = false;
@@ -524,6 +522,8 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
     (p: Partial<Profile>) => setState((s) => ({ ...s, profile: { ...s.profile, ...p } })),
     []
   );
+
+  const setTheme = useCallback((id: string) => patch({ theme: id }), [patch]);
 
   const setCurrentWeight = useCallback((kg: number) => {
     setState((s) => {
@@ -632,6 +632,7 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
       hydrated,
       steps: today.steps,
       water: today.water,
+      setTheme,
       updateProfile,
       setCurrentWeight,
       setTargetWeight,
@@ -662,6 +663,7 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
       hydrated,
       today.steps,
       today.water,
+      setTheme,
       updateProfile,
       setCurrentWeight,
       setTargetWeight,

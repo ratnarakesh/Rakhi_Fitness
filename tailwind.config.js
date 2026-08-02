@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+const c = (v) => `rgb(var(${v}) / <alpha-value>)`;
+
 module.exports = {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
@@ -8,29 +10,30 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Rakhi Fitness dark design language
-        background: '#000000',
-        surface: '#111111',
-        'surface-alt': '#1A1A1A',
-        border: '#242424',
-        accent: '#00FFCC',
-        'accent-muted': '#0B8C77',
-        muted: '#8A8A8A',
-        faint: '#5A5A5A',
-        danger: '#FF5A5F',
-        warning: '#FFB020',
+        // Themeable tokens — values come from CSS variables set per theme
+        // in globals.css (see [data-theme="…"]). Default is Aurora Glass.
+        background: c('--c-bg'),
+        surface: c('--c-surface'),
+        'surface-alt': c('--c-surface-alt'),
+        border: c('--c-border'),
+        accent: c('--c-accent'),
+        'accent-muted': c('--c-accent-muted'),
+        muted: c('--c-muted'),
+        faint: c('--c-faint'),
+        danger: c('--c-danger'),
+        warning: c('--c-warning'),
       },
       fontFamily: {
-        sans: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       boxShadow: {
-        glow: '0 0 24px rgba(0, 255, 204, 0.25)',
+        glow: '0 0 24px rgb(var(--c-accent) / 0.28)',
       },
       keyframes: {
         'pulse-ring': {
-          '0%': { boxShadow: '0 0 0 0 rgba(0,255,204,0.35)' },
-          '70%': { boxShadow: '0 0 0 12px rgba(0,255,204,0)' },
-          '100%': { boxShadow: '0 0 0 0 rgba(0,255,204,0)' },
+          '0%': { boxShadow: '0 0 0 0 rgb(var(--c-accent) / 0.35)' },
+          '70%': { boxShadow: '0 0 0 12px rgb(var(--c-accent) / 0)' },
+          '100%': { boxShadow: '0 0 0 0 rgb(var(--c-accent) / 0)' },
         },
       },
       animation: {

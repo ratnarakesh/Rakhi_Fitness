@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Bell, Camera, Check, Cloud, Lock, LogOut, User } from 'lucide-react';
+import { Bell, Camera, Check, Cloud, Lock, LogOut, Palette, User } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
@@ -11,6 +11,7 @@ import {
   type FitnessGoal,
   type Gender,
 } from '@/context/GlobalContext';
+import { THEMES } from '@/lib/themes';
 import { cn } from '@/lib/utils';
 
 const GENDERS: Gender[] = ['male', 'female', 'other'];
@@ -41,6 +42,8 @@ export default function AccountPage() {
     reminderEnabled,
     reminderTime,
     setReminder,
+    theme,
+    setTheme,
   } = useGlobal();
 
   const { enabled, authReady, user, error, signIn, signOutUser } = useAuth();
@@ -313,6 +316,49 @@ export default function AccountPage() {
       </motion.button>
         </>
       )}
+
+      {/* Appearance / theme — available without login */}
+      <div className="mt-4 card">
+        <div className="flex items-center gap-2">
+          <Palette size={16} className="text-accent" />
+          <span className="label">Appearance</span>
+        </div>
+        <p className="mt-2 text-sm text-muted">Pick your vibe — changes instantly, everywhere.</p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {THEMES.map((t) => {
+            const active = theme === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTheme(t.id)}
+                data-testid={`theme-${t.id}`}
+                className={cn(
+                  'rounded-xl border p-3 text-left transition active:scale-[0.98]',
+                  active ? 'border-accent' : 'border-border'
+                )}
+                style={{ background: t.swatch.bg }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-1.5">
+                    <span className="h-5 w-5 rounded-full" style={{ background: t.swatch.accent }} />
+                    <span className="h-5 w-5 rounded-full" style={{ background: t.swatch.accent2 }} />
+                  </div>
+                  {active && (
+                    <span
+                      className="flex h-5 w-5 items-center justify-center rounded-full"
+                      style={{ background: t.swatch.accent, color: t.swatch.bg }}
+                    >
+                      <Check size={13} strokeWidth={3} />
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 text-sm font-bold text-white">{t.name}</p>
+                <p className="mt-0.5 text-[11px] leading-snug text-white/55">{t.blurb}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Gym reminder — a device setting, available without login */}
       <div className="mt-4 card">

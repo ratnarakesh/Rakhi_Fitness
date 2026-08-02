@@ -5,6 +5,7 @@ import './globals.css';
 import BottomNav from '@/components/BottomNav';
 import ReminderScheduler from '@/components/ReminderScheduler';
 import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
+import ThemeApplier from '@/components/ThemeApplier';
 import { AuthProvider } from '@/context/AuthContext';
 import { GlobalProvider } from '@/context/GlobalContext';
 
@@ -77,8 +78,16 @@ export default function RootLayout({
         className="min-h-screen bg-background font-sans text-white antialiased"
         suppressHydrationWarning
       >
+        {/* Apply the saved theme before first paint (no flash of default). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('rakhi-fitness/theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}",
+          }}
+        />
         <AuthProvider>
           <GlobalProvider>
+            <ThemeApplier />
             <main className="mx-auto min-h-screen w-full max-w-md pb-24">
               {children}
             </main>

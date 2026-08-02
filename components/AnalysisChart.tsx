@@ -23,6 +23,9 @@ interface Props {
   now: number;
 }
 
+/** Themed accent (follows the active theme's --c-accent). */
+const ACCENT = 'rgb(var(--c-accent))';
+
 const H = 190; // svg height
 const PAD_T = 18;
 const PAD_B = 26;
@@ -31,7 +34,7 @@ const SLOT = 46; // px per point (drives horizontal scroll)
 export default function AnalysisChart({
   title,
   data,
-  color = '#00FFCC',
+  color = ACCENT,
   unit = '',
   kind = 'line',
   now,

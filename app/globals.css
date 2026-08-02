@@ -2,8 +2,136 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* ==========================================================================
+   Themes — each sets the color tokens (RGB channels), the app background,
+   and the card treatment. Default (:root) is Aurora Glass. Switch by setting
+   data-theme="…" on <html> (see components/ThemeApplier).
+   ========================================================================== */
+
+:root,
+[data-theme='aurora'] {
   color-scheme: dark;
+  --c-bg: 6 6 12;
+  --c-surface: 22 22 31;
+  --c-surface-alt: 30 30 42;
+  --c-border: 44 44 60;
+  --c-accent: 167 139 250;
+  --c-accent-muted: 118 92 200;
+  --c-muted: 156 156 178;
+  --c-faint: 100 100 116;
+  --c-danger: 251 113 133;
+  --c-warning: 251 191 36;
+  --app-bg:
+    radial-gradient(680px 420px at 8% -4%, rgba(167, 139, 250, 0.30), transparent 60%),
+    radial-gradient(680px 460px at 96% 8%, rgba(34, 211, 238, 0.20), transparent 60%),
+    radial-gradient(760px 520px at 60% 114%, rgba(52, 211, 153, 0.15), transparent 60%),
+    #06060c;
+  --card-bg: rgba(255, 255, 255, 0.055);
+  --card-border: rgba(255, 255, 255, 0.12);
+  --card-blur: 12px;
+}
+
+[data-theme='ocean'] {
+  color-scheme: dark;
+  --c-bg: 5 10 20;
+  --c-surface: 14 26 46;
+  --c-surface-alt: 20 34 58;
+  --c-border: 29 51 82;
+  --c-accent: 56 189 248;
+  --c-accent-muted: 40 120 170;
+  --c-muted: 127 146 168;
+  --c-faint: 84 104 126;
+  --c-danger: 251 113 133;
+  --c-warning: 245 158 11;
+  --app-bg:
+    radial-gradient(680px 320px at 50% -6%, rgba(56, 189, 248, 0.20), transparent 62%),
+    linear-gradient(180deg, #0b1830, #070f1e 55%, #050a14);
+  --card-bg: rgb(14 26 46);
+  --card-border: rgb(29 51 82);
+  --card-blur: 0px;
+}
+
+[data-theme='synth'] {
+  color-scheme: dark;
+  --c-bg: 10 6 18;
+  --c-surface: 22 10 34;
+  --c-surface-alt: 32 16 46;
+  --c-border: 60 30 74;
+  --c-accent: 255 79 216;
+  --c-accent-muted: 170 50 140;
+  --c-muted: 173 143 184;
+  --c-faint: 108 88 120;
+  --c-danger: 255 90 120;
+  --c-warning: 245 200 60;
+  --app-bg:
+    radial-gradient(500px 320px at 8% 0%, rgba(255, 79, 216, 0.26), transparent 60%),
+    radial-gradient(520px 320px at 98% 8%, rgba(34, 211, 238, 0.20), transparent 60%),
+    #0a0612;
+  --card-bg: rgb(22 10 34);
+  --card-border: rgba(255, 79, 216, 0.22);
+  --card-blur: 0px;
+}
+
+[data-theme='ember'] {
+  color-scheme: dark;
+  --c-bg: 11 7 7;
+  --c-surface: 29 18 16;
+  --c-surface-alt: 40 24 20;
+  --c-border: 51 32 26;
+  --c-accent: 251 146 60;
+  --c-accent-muted: 170 100 45;
+  --c-muted: 168 141 126;
+  --c-faint: 108 88 78;
+  --c-danger: 244 63 94;
+  --c-warning: 245 158 11;
+  --app-bg:
+    radial-gradient(560px 360px at 88% 4%, rgba(251, 146, 60, 0.22), transparent 60%),
+    radial-gradient(520px 320px at 6% 18%, rgba(244, 63, 94, 0.16), transparent 60%),
+    linear-gradient(180deg, #1c0d16, #120a0b 55%, #0b0707);
+  --card-bg: rgb(29 18 16);
+  --card-border: rgb(51 32 26);
+  --card-blur: 0px;
+}
+
+[data-theme='forest'] {
+  color-scheme: dark;
+  --c-bg: 5 13 8;
+  --c-surface: 15 29 21;
+  --c-surface-alt: 22 40 30;
+  --c-border: 27 50 39;
+  --c-accent: 52 211 153;
+  --c-accent-muted: 30 140 100;
+  --c-muted: 129 158 143;
+  --c-faint: 86 108 96;
+  --c-danger: 251 113 133;
+  --c-warning: 245 190 70;
+  --app-bg:
+    radial-gradient(620px 340px at 50% -6%, rgba(52, 211, 153, 0.18), transparent 62%),
+    radial-gradient(420px 260px at 92% 26%, rgba(163, 230, 53, 0.12), transparent 60%),
+    linear-gradient(180deg, #0a1811, #07120c 60%, #050d08);
+  --card-bg: rgb(15 29 21);
+  --card-border: rgb(27 50 39);
+  --card-blur: 0px;
+}
+
+[data-theme='mono'] {
+  color-scheme: dark;
+  --c-bg: 21 23 28;
+  --c-surface: 32 35 43;
+  --c-surface-alt: 40 44 54;
+  --c-border: 46 50 60;
+  --c-accent: 215 255 62;
+  --c-accent-muted: 150 180 30;
+  --c-muted: 156 160 170;
+  --c-faint: 114 118 128;
+  --c-danger: 248 113 113;
+  --c-warning: 245 200 60;
+  --app-bg:
+    radial-gradient(600px 240px at 50% -10%, rgba(215, 255, 62, 0.08), transparent 60%),
+    linear-gradient(180deg, #191b21, #15171c);
+  --card-bg: rgb(32 35 43);
+  --card-border: rgb(46 50 60);
+  --card-blur: 0px;
 }
 
 html,
@@ -12,17 +140,26 @@ body {
 }
 
 body {
-  background-color: #000000;
+  background: rgb(var(--c-bg));
   color: #ffffff;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* Respect device safe areas for standalone PWA (notch / home indicator). */
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left);
   overscroll-behavior-y: none;
 }
 
-/* Remove number input spinners for a cleaner metric UI. */
+/* Fixed, themed atmosphere behind all content. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--app-bg);
+  background-size: cover;
+  pointer-events: none;
+}
+
 input[type='number']::-webkit-outer-spin-button,
 input[type='number']::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -32,22 +169,25 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
-/* Slim neon scrollbar. */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #242424;
+  background: rgb(var(--c-border));
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #0b8c77;
+  background: rgb(var(--c-accent-muted));
 }
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-border bg-surface p-5;
+    @apply rounded-2xl p-5;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(var(--card-blur));
+    -webkit-backdrop-filter: blur(var(--card-blur));
   }
   .label {
     @apply text-[11px] font-semibold uppercase tracking-widest text-muted;

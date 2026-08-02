@@ -1,14 +1,15 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Camera, Check, ChevronRight, ImageIcon, Trash2, Weight } from 'lucide-react';
+import { Camera, Check, ChevronRight, Flame, ImageIcon, Trash2, Weight } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
 
 import AnalysisChart, { type Point } from '@/components/AnalysisChart';
 import { useAuth } from '@/context/AuthContext';
 import { toDateKey, useGlobal } from '@/context/GlobalContext';
-import { fmt, humanDate } from '@/lib/utils';
+import { muscleSplit, streaks, weekActivity, weekVolume, workoutDays } from '@/lib/stats';
+import { cn, fmt, humanDate } from '@/lib/utils';
 
 export default function ProgressPage() {
   const {
@@ -47,6 +48,14 @@ export default function ProgressPage() {
       .map(([key, v]) => ({ t: Date.parse(`${key}T12:00:00`), v }))
       .sort((a, b) => a.t - b.t);
   }, [workoutHistory]);
+
+  // --- Streak / weekly / muscle-split stats -------------------------------
+  const nowDate = new Date(now);
+  const wdays = useMemo(() => workoutDays(workoutHistory), [workoutHistory]);
+  const strk = useMemo(() => streaks(wdays, nowDate), [wdays, now]); // eslint-disable-line react-hooks/exhaustive-deps
+  const week = useMemo(() => weekActivity(wdays, nowDate), [wdays, now]); // eslint-disable-line react-hooks/exhaustive-deps
+  const wkVol = useMemo(() => weekVolume(workoutHistory, nowDate), [workoutHistory, now]); // eslint-disable-line react-hooks/exhaustive-deps
+  const split = useMemo(() => muscleSplit(workoutHistory, nowDate), [workoutHistory, now]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [weightInput, setWeightInput] = useState('');
   const [savedFlash, setSavedFlash] = useState(false);
@@ -89,6 +98,78 @@ export default function ProgressPage() {
         </p>
         <h1 className="mt-1 text-3xl font-extrabold tracking-tight">Progress</h1>
       </div>
+
+      {/* ---- This week: streak, activity, muscle split ---- */}
+      <section className="mb-6 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="card flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
+              <Flame size={22} />
+            </div>
+            <div>
+              <p className="text-2xl font-extrabold text-accent">
+                {strk.current}
+                <span className="text-sm font-semibold text-muted"> d</span>
+              </p>
+              <p className="label">Streak · best {strk.longest}</p>
+            </div>
+          </div>
+          <div className="card">
+            <p className="label">This Week</p>
+            <p className="mt-1 text-2xl font-extrabold text-white">
+              {week.trainedCount}
+              <span className="text-sm font-semibold text-muted"> days</span>
+            </p>
+            <p className="text-xs text-muted">{fmt(wkVol)} kg volume</p>
+          </div>
+        </div>
+
+        <div className="card">
+          <p className="label mb-3">Weekly Activity</p>
+          <div className="flex justify-between">
+            {week.days.map((d, i) => (
+              <div key={i} className="flex flex-col items-center gap-2">
+                <div
+                  className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-lg text-sm font-extrabold',
+                    d.trained
+                      ? 'bg-accent text-background shadow-glow'
+                      : d.isToday
+                        ? 'text-accent ring-2 ring-accent'
+                        : 'bg-surface-alt text-faint'
+                  )}
+                >
+                  {d.trained ? <Check size={16} strokeWidth={3} /> : ''}
+                </div>
+                <span className="text-[10px] font-bold text-muted">{d.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <p className="label mb-3">Muscle Split · this week</p>
+          {split.length === 0 ? (
+            <p className="text-sm text-faint">No workouts logged this week yet.</p>
+          ) : (
+            <div className="space-y-2.5">
+              {split.map((s) => (
+                <div key={s.category}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="font-bold text-white">{s.category}</span>
+                    <span className="text-muted">
+                      {s.sets} {s.sets === 1 ? 'set' : 'sets'} · {s.pct}%
+                    </span>
+                  </div>
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-alt">
+                    <div className="h-full rounded-full" style={{ width: `${s.pct}%`, background: s.color }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Charts */}
       <div className="space-y-4">

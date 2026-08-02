@@ -3,12 +3,11 @@
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
-  CalendarDays,
   Check,
   ChevronRight,
-  Coffee,
   Droplets,
   Dumbbell,
+  Flame,
   Footprints,
   Pencil,
   Pill,
@@ -24,10 +23,12 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import ProgressBar from '@/components/ProgressBar';
+import ProgressRing from '@/components/ProgressRing';
 import { useAuth } from '@/context/AuthContext';
 import { isCompliant, toDateKey, useGlobal } from '@/context/GlobalContext';
 import { CHECKLIST_ITEM_IDS, CHECKLIST_TOTAL } from '@/lib/checklist';
 import { getDayPlan } from '@/lib/plan';
+import { streaks, todayProgress, workoutDays } from '@/lib/stats';
 import { cn, fmt, pct } from '@/lib/utils';
 
 export default function DashboardPage() {
@@ -47,10 +48,17 @@ export default function DashboardPage() {
     addWater,
     isChecked,
     alcoholLogs,
+    workoutHistory,
   } = useGlobal();
 
   const { enabled, user } = useAuth();
   const gated = enabled && !user; // bodyweight is a private detail
+
+  const nowDate = new Date();
+  const wdays = workoutDays(workoutHistory);
+  const streak = streaks(wdays, nowDate).current;
+  const progress = todayProgress(workoutHistory, getDayPlan(), nowDate);
+  const progressPct = progress.planned > 0 ? Math.round((progress.done / progress.planned) * 100) : 0;
 
   const hasWeights = currentWeight > 0 && targetWeight > 0;
   const delta = +(currentWeight - targetWeight).toFixed(1);
@@ -82,21 +90,62 @@ export default function DashboardPage() {
           </h1>
           <p className="mt-1 text-sm text-muted">Welcome back — let&apos;s train.</p>
         </div>
-        <Link
-          href="/account"
-          aria-label="Open account"
-          className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-border bg-surface-alt"
-        >
-          {profile.photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={profile.photo} alt="Profile" className="h-full w-full object-cover" />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center text-muted">
-              <User size={22} />
-            </span>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <Link
+            href="/account"
+            aria-label="Open account"
+            className="relative h-12 w-12 overflow-hidden rounded-full border border-border bg-surface-alt"
+          >
+            {profile.photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={profile.photo} alt="Profile" className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-muted">
+                <User size={22} />
+              </span>
+            )}
+          </Link>
+          {streak > 0 && (
+            <Link
+              href="/progress"
+              className="flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-xs font-extrabold text-accent"
+            >
+              <Flame size={13} /> {streak}d
+            </Link>
           )}
-        </Link>
+        </div>
       </div>
+
+      {/* Today's session progress */}
+      <Link
+        href={todayPlan.rest ? '/plan' : '/tracker'}
+        className="mb-4 flex items-center gap-4 card active:scale-[0.99]"
+      >
+        <ProgressRing
+          value={progress.rest ? 1 : progress.done}
+          max={progress.rest ? 1 : Math.max(progress.planned, 1)}
+          size={62}
+          center={
+            <span className="text-sm font-extrabold text-accent">
+              {progress.rest ? '💤' : `${progress.done}/${progress.planned}`}
+            </span>
+          }
+        />
+        <div className="min-w-0 flex-1">
+          <p className="label">Today · {todayPlan.title}</p>
+          <p className="mt-1 font-bold text-white">
+            {progress.rest
+              ? 'Rest day — recover well'
+              : progress.planned > 0 && progress.done >= progress.planned
+                ? 'Session complete! 🎉'
+                : progressPct === 0
+                  ? "Let's get started"
+                  : `${progress.planned - progress.done} exercise${progress.planned - progress.done === 1 ? '' : 's'} to go`}
+          </p>
+          <p className="truncate text-xs text-muted">{todayPlan.pairing}</p>
+        </div>
+        <ChevronRight size={20} className="shrink-0 text-muted" />
+      </Link>
 
       {/* Executive KPI — bodyweight vs target */}
       <motion.section
@@ -269,19 +318,19 @@ export default function DashboardPage() {
         </div>
       </motion.section>
 
-      {/* Today's session + supplement stack */}
+      {/* Streak + supplement stack */}
       <div className="mt-4 grid grid-cols-2 gap-4">
-        <Link href="/plan" className="card flex flex-col justify-between active:scale-[0.99]">
+        <Link href="/progress" className="card flex flex-col justify-between active:scale-[0.99]">
           <div className="flex items-center gap-2 text-muted">
-            {todayPlan.rest ? (
-              <Coffee size={16} style={{ color: todayPlan.color }} />
-            ) : (
-              <CalendarDays size={16} style={{ color: todayPlan.color }} />
-            )}
-            <span className="label">Today</span>
+            <Flame size={16} className="text-accent" />
+            <span className="label">Streak</span>
           </div>
-          <p className="mt-3 text-xl font-extrabold text-white">{todayPlan.title}</p>
-          <p className="mt-0.5 truncate text-xs text-muted">{todayPlan.pairing}</p>
+          <p className="mt-3 text-xl font-extrabold text-accent">
+            {streak} <span className="text-sm text-muted">days</span>
+          </p>
+          <p className="mt-0.5 truncate text-xs text-muted">
+            {streak > 0 ? 'Keep it alive 🔥' : 'Log a workout to start'}
+          </p>
         </Link>
 
         <Link href="/checklist" className="card flex flex-col justify-between active:scale-[0.99]">
